@@ -46,12 +46,14 @@ find_package(catkin REQUIRED COMPONENTS
 
 ## Generate messages in the 'msg' folder
 add_message_files(
+	FILES
 	point.msg
 	waypoints.msg
 )
 
 ## Generate services in the 'srv' folder
 add_service_files(
+	FILES
 	connect_waypoints.srv
 	request_endpoint.srv
 	request_orientation.srv
@@ -66,7 +68,8 @@ add_service_files(
 
 ## Generate added messages and services with any dependencies listed here
 generate_messages(
-   std_msgs
+	DEPENDENCIES
+	std_msgs
 )
 
 ###################################

@@ -49,6 +49,7 @@ add_message_files(
 	FILES
 	point.msg
 	waypoints.msg
+	ball.msg
 )
 
 ## Generate services in the 'srv' folder

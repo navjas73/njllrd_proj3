@@ -9,6 +9,9 @@ from cv_bridge import CvBridge, CvBridgeError
 from matplotlib import pyplot as plt
 from std_msgs.msg import String
 from sensor_msgs.msg import Image
+from njllrd_proj3.srv import *
+from njllrd_proj3.msg import *
+
 
 class image_blur:
 
@@ -16,6 +19,8 @@ class image_blur:
     # initialize a node called imaging
     rospy.init_node("imaging")
 
+    # Create publisher
+    self.pub = rospy.Publisher('ball_position',ball)
     # create a window to display results in
     cv2.namedWindow("image_view", 1)
 
@@ -45,28 +50,69 @@ class image_blur:
     imgHSV = cv2.medianBlur(imgHSV,3)
     cv2.imshow("image_view_blur1", imgHSV)
 
-    #hsv_min = np.array([150,100,70])
-    #hsv_max = np.array([255,255,255])
-
-    hsv_min = np.array([100,0,70])
+    hsv_min = np.array([150,100,70])
     hsv_max = np.array([255,255,255])
+
 
     img_thr = cv2.inRange(imgHSV,hsv_min,hsv_max)
     cv2.imshow("image_thr", img_thr)
 
     img_thr = cv2.medianBlur(img_thr,5)
     cv2.imshow("image_thr_blur", img_thr)
-    
-    
-    circles = cv2.HoughCircles(img_thr, cv.CV_HOUGH_GRADIENT, 1, 10)
-    circles = np.round(circles[0,:]).astype("int")
-    for i in circles[0,:]:
-        # draw the outer circle
-        cv2.circle(img_thr,(i[0],i[1]),i[2],(0,255,0),2)
-        # draw the center of the circle
-        cv2.circle(img_thr,(i[0],i[1]),2,(0,0,255),3)
+    '''
+    image_copy = cv_image.copy()
+    circles = cv2.HoughCircles(img_thr, cv.CV_HOUGH_GRADIENT, 1, 10, param1 = 100, param2 = 20)
+    if circles is not None:
+        circles = np.round(circles[0, :]).astype("int")
+        for (x, y, r) in circles:
+            # draw the circle in the output image, then draw a rectangle
+            # corresponding to the center of the circle
+            cv2.circle(image_copy, (x, y), r, (0, 255, 0), 2)
+            cv2.rectangle(image_copy, (x - 1, y - 1), (x + 1, y + 1), (0, 128, 255), -1)
+             
+            # show the output image
+        cv2.imshow("output", np.hstack([cv_image, image_copy]))
+    '''
 
-    cv2.imshow('detected circles',img_thr)
+    # Setup SimpleBlobDetector parameters.
+    params = cv2.SimpleBlobDetector_Params()
+     
+    params.filterByColor = True
+    params.blobColor = 255
+     
+    # Filter by Area.
+    params.filterByArea = True
+    params.minArea = 100
+     
+    # Filter by Circularity
+    params.filterByCircularity = True
+    params.minCircularity = 0.5
+     
+    # Filter by Convexity
+    params.filterByConvexity = True
+    params.minConvexity = 0.87
+     
+    # Filter by Inertia
+    params.filterByInertia = True
+    params.minInertiaRatio = 0.5
+     
+    # Create a detector with the parameters
+    ver = (cv2.__version__).split('.')
+    if int(ver[0]) < 3 :
+        detector = cv2.SimpleBlobDetector(params)
+    else :
+        detector = cv2.SimpleBlobDetector_create(params)
+
+    keypoints = detector.detect(img_thr)
+
+    if keypoints:
+        x = keypoints[0].pt[0]
+        y = keypoints[0].pt[1]
+        t = rospy.get_time()
+        self.pub.publish(x = x, y = y, t = t)
+
+        im_with_keypoints = cv2.drawKeypoints(img_thr, keypoints, np.array([]), (0,0,255), cv2.DRAW_MATCHES_FLAGS_DRAW_RICH_KEYPOINTS)
+        cv2.imshow("Keypoints", im_with_keypoints)
     
     '''
     cv2.cvtColor(cv_image, cv_image_gray, cv2.COLOR_RGB2GRAY);
