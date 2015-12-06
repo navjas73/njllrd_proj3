@@ -272,7 +272,7 @@ def get_plane_points():
     while flag == False:
         x = 1
         #loop
-
+https://github.com/navjas73/njllrd_proj3.git
     point1 = request_position()
     flag = False
 
