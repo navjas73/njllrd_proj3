@@ -9,13 +9,18 @@ from njllrd_proj2.msg import *
 from std_msgs.msg import String
 
 flag = False
+x_last = None
+y_last = None
+t_last = None
 
 def controller():
     rospy.init_node('controller')
     rospy.wait_for_service('request_endpoint')
     rospy.wait_for_service('request_orientation')
     rospy.Subscriber('user_input', String, handle_user_input)
-    
+    # subscribe to ball position topic
+    ball_pos = rospy.Subscriber("njllrd_proj3/ball_position", ball, self.get_ball_velocity)
+
 
     if rospy.get_param('/mode') == "connect_points":
         point1, point2 = get_connect_points()
@@ -377,183 +382,16 @@ def move_between_strokes(stroke_request,R):
     return go_to_stroke
 
 
-
-def a():
-	s_1 = numpy.array([[5,-3,0],[5,-7,0]])
-	s_2 = numpy.array([[1,-1,0],[9,-5,0],[1,-9,0]])
-	p_end = numpy.array([1,-9,0])
-	return s_1,s_2,p_end
-
-def b():
-	s_1 = numpy.array([[5,-1,0],[5,-5,0]])
-	s_2 = numpy.array([[1,-6,0],[1,-1,0],[5,-1,0],[9,-1,0],[9,-5,0],[5,-5,0],[5,-6,0],[1,-6,0]])
-	p_end = numpy.array([1,-6,0])
-	return s_1,s_2,p_end
-	
-def c():
-	s_1 = numpy.array([[9,-8,0],[9,-1,0],[1,-1,0],[1,-8,0]])
-	p_end = numpy.array([1,-8,0])
-	return s_1,p_end
-
-def d():
-	s_1 = numpy.array([[3,-8,0],[1,-1,0],[9,-1,0],[7,-8,0],[3,-8,0]])
-	p_end = numpy.array([1,-8,0])
-	return s_1,p_end
-
-def e():
-	s_1 = numpy.array([[5,-1,0],[5,-6,0]])
-	s_2 = numpy.array([[9,-6,0],[9,-1,0],[5,-1,0],[1,-1,0],[1,-6,0]])
-	p_end = numpy.array([1,-6,0])
-	return s_1,s_2,p_end
-	
-def f():
-	s_1 = numpy.array([[5,-1,0],[5,-6,0]])
-	s_2 = numpy.array([[9,-6,0],[9,-1,0],[5,-1,0],[1,-1,0]])
-	p_end = numpy.array([1,-6,0])
-	return s_1,s_2,p_end
-
-def g():
-	s_1 = numpy.array([[9,-9,0],[9,-1,0],[1,-1,0],[1,-9,0],[5,-9,0],[5,-5,0]])
-	p_end = numpy.array([1,-9,0])
-	return s_1,p_end
-
-def h():
-	s_1 = numpy.array([[1,-1,0],[9,-1,0]])
-	s_2 = numpy.array([[5,-1,0],[5,-9,0]])
-	s_3 = numpy.array([[9,-9,0],[1,-9,0]])
-	p_end = numpy.array([1,-9,0])
-	return s_1,s_2,s_3,p_end
-	
-def i():
-	s_1 = numpy.array([[9,-1,0],[9,-5,0],[9,-9,0]])
-	s_2 = numpy.array([[9,-5,0],[1,-5,0]])
-	s_3 = numpy.array([[1,-1,0],[1,-5,0],[1,-9,0]])
-	p_end = numpy.array([1,-9,0])
-	return s_1,s_2,s_3,p_end
-
-def j():
-	s_1 = numpy.array([[9,-1,0],[9,-5,0],[9,-9,0]])
-	s_2 = numpy.array([[9,-5,0],[1,-5,0]])
-	s_3 = numpy.array([[1,-1,0],[1,-5,0]])
-	p_end = numpy.array([1,-9,0])
-	return s_1,s_2,s_3,p_end
-
-def k():
-	s_1 = numpy.array([[1,-1,0],[5,-1,0],[9,-1,0]])
-	s_2 = numpy.array([[9,-7,0],[5,-1,0],[1,-7,0]])
-	p_end = numpy.array([1,-7,0])
-	return s_1,s_2,p_end
-	
-def l():
-	s_1 = numpy.array([[9,-1,0],[1,-1,0],[1,-7,0]])
-	p_end = numpy.array([1,-7,0])
-	return s_1, p_end
-
-def m():
-	s_1 = numpy.array([[1,-1,0],[9,-1,0],[5,-5,0],[9,-9,0],[1,-9,0]])
-	p_end = numpy.array([1,-9,0])
-	return s_1, p_end
-	
-def n():
-	s_1 = numpy.array([[1,-1,0],[9,-1,0],[1,-7,0],[9,-7,0]])
-	p_end = numpy.array([1,-7,0])
-	return s_1, p_end
-
-def o():
-	s_1 = numpy.array([[1,-8,0],[1,-1,0],[9,-1,0],[9,-9,0],[9,-8,0],[1,-8,0]])
-	p_end = numpy.array([1,-8,0])
-	return s_1, p_end
-
-def p():
-	s_1 = numpy.array([[5,-1,0],[5,-6,0],[9,-6,0],[9,-1,0],[5,-1,0],[1,-1,0]])
-	p_end = numpy.array([1,-6,0])
-	return s_1, p_end
-
-def q():
-	s_1 = numpy.array([[1,-7,0],[1,-1,0],[9,-1,0],[9,-7,0],[1,-7,0]])
-	s_2 = numpy.array([[4,-4,0],[1,-8,0]])
-	p_end = numpy.array([1,-8,0])
-	return s_1, s_2, p_end
-
-def r():
-	s_1 = numpy.array([[5,-1,0],[5,-5,0]])
-	s_2 = numpy.array([[1,-1,0],[5,-1,0],[9,-1,0],[9,-5,0],[5,-5,0],[5,-6,0],[1,-6,0]])
-	p_end = numpy.array([1,-6,0])
-	return s_1, s_2, p_end
-
-def s():
-	s_1 = numpy.array([[1,-1,0],[1,-6,0],[5,-6,0],[5,-1,0],[9,-1,0],[9,-5,0]])
-	p_end = numpy.array([1,-6,0])
-	return s_1, p_end
-	
-def t():
-	s_1 = numpy.array([[9,-1,0],[9,-5,0],[9,-9,0]])
-	s_2 = numpy.array([[9,-5,0],[1,-5,0]])
-	p_end = numpy.array([1,-9,0])
-	return s_1, s_2, p_end
-
-def u():
-	s_1 = numpy.array([[9,-1,0],[1,-1,0],[1,-7,0],[9,-7,0]])
-	p_end = numpy.array([1,-7,0])
-	return s_1, p_end
-
-def v():
-	s_1 = numpy.array([[9,-1,0],[1,-5,0],[9,-9,0]])
-	p_end = numpy.array([1,-9,0])
-	return s_1, p_end
-
-def w():
-    s_1 = numpy.array([[9,-1,0],[1,-3,0],[9,-5,0],[1,-7,0],[9,-9,0]])
-    p_end = numpy.array([1,-9,0])
-    return s_1, p_end
-	
-def x():
-	s_1 = numpy.array([[1,-1,0],[9,-9,0]])
-	s_2 = numpy.array([[9,-1,0],[1,-9,0]])
-	p_end = numpy.array([1,-9,0])
-	return s_1, s_2, p_end
-
-def y():
-	s_1 = numpy.array([[9,-1,0],[5,-5,0],[1,-5,0]])
-	s_2 = numpy.array([[5,-5,0],[9,-9,0]])
-	p_end = numpy.array([1,-9,0])
-	return s_1, s_2, p_end
-
-def z():
-	s_1 = numpy.array([[5,-2,0],[5,-8,0]])
-	s_2 = numpy.array([[9,-1,0],[9,-9,0],[1,-1,0],[1,-9,0]])
-	p_end = numpy.array([1,-9,0])
-	return s_1, s_2, p_end
-
-def maze():
-	s_1 = numpy.array([[7,-1,0],[7,-3,0],[9,-3,0],[9,-7,0],[3,-7,0],[3,-9,0]])
-	s_2 = numpy.array([[3,-5,0],[3,-7,0]])
-	s_3 = numpy.array([[1,-9,0],[1,-3,0],[5,-3,0],[5,-5,0],[7,-5,0]])
-	s_4 = numpy.array([[5,-1,0],[5,-3,0]])
-	s_5 = numpy.array([[6,-1,0],[6,-2,0]])
-	s_6 = numpy.array([[6,-3,0],[6,-4,0]])
-	s_7 = numpy.array([[7,-4,0],[8,-4,0]])
-	s_8 = numpy.array([[8,-5,0],[8,-6,0]])
-	s_9 = numpy.array([[7,-6,0],[6,-6,0]])
-	s_10 = numpy.array([[5,-6,0],[4,-6,0]])
-	s_11 = numpy.array([[4,-5,0],[4,-4,0]])
-	s_12 = numpy.array([[3,-4,0],[2,-4,0]])
-	s_13 = numpy.array([[2,-5,0],[2,-6,0]])
-	s_14 = numpy.array([[2,-7,0],[2,-8,0]])
-	p_end = numpy.array([1,-9,0])
-	return s_1,s_2,s_3,s_4,s_5,s_6,s_7,s_8,s_9,s_10,s_11,s_12,s_13,s_14,p_end
-	
-def pyramids():
-	s_1 = numpy.array([[0,0,0],[4,-3,0],[0,-7,0]])
-	s_2 = numpy.array([[0,-1,0],[4,-3,0]])
-	s_3 = numpy.array([[3,-4,0],[6,-7,0],[0,-13,0]])
-	s_4 = numpy.array([[2,-5,0],[6,-7,0]])
-	s_5 = numpy.array([[2,-11,0],[4,-13,0],[0,-17,0]])
-	s_6 = numpy.array([[1,-12,0],[4,-13,0]])
-	p_end = numpy.array([1,-17,0])
-	return s_1,s_2,s_3,s_4,s_5,s_6,p_end
-	
-	
+def get_ball_velocity(data):
+    global x_last
+    global t_last
+    global t_last
+    x = data.x
+    y = data.y
+    t = data.t
+    vx = (x-x_last)/(t-t_last)
+    vy = (y-y_last)/(t-t_last)
 	
 if __name__ == "__main__":
     controller()
+
