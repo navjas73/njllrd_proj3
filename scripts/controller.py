@@ -63,7 +63,20 @@ def controller():
         print points.points
         request = rospy.ServiceProxy('connect_waypoints', connect_waypoints)
         output = request(points)
+    
+    elif rospy.get_param('/mode') == "field"
+        scale_factor = 0.01
+        point1, point2, point3 = get_plane_points()
+        pointa = numpy.array([point1.endpoint.x, point1.endpoint.y, point1.endpoint.z])
+        pointb = numpy.array([point2.endpoint.x, point2.endpoint.y, point2.endpoint.z])
+        pointc = numpy.array([point3.endpoint.x, point3.endpoint.y, point3.endpoint.z])
         
+        plane_vec = numpy.cross(pointa-pointb, pointb-pointc)
+
+        plane_normal = plane_vec/numpy.linalg.norm(plane_vec)
+
+        R = make_rotation_matrix(plane_normal)
+
     elif rospy.get_param('/mode') == "draw":
         scale_factor = 0.01
         point1, point2, point3 = get_plane_points()
@@ -124,31 +137,6 @@ def controller():
 
         #points.points.append(make_point_from_array(first_point_rot_trans))
         #points.points.append(make_point_from_array(second_point_rot_trans))
-
-
-    elif rospy.get_param('/mode')=="RRT":
-        point1, point2 = get_connect_points()
-        #goalstart = numpy.array([numpy.asarray(point1.config),numpy.asarray(point2.config)])
-        rospy.wait_for_service('construct_RRT')
-        request = rospy.ServiceProxy('construct_RRT', construct_RRT)
-        output = request(point1.config, point2.config)  
-        rospy.wait_for_service('connect_configs')
-        request_config = rospy.ServiceProxy('connect_configs', connect_configs)
-        success = request_config(output.path)   
-        print success
-        print output.path 
-
-    elif rospy.get_param('/mode')=="BIRRT":
-        point1, point2 = get_connect_points()
-        #goalstart = numpy.array([numpy.asarray(point1.config),numpy.asarray(point2.config)])
-        rospy.wait_for_service('construct_BIRRT')
-        request = rospy.ServiceProxy('construct_BIRRT', construct_BIRRT)
-        output = request(point1.config, point2.config)  
-        rospy.wait_for_service('connect_configs')
-        request_config = rospy.ServiceProxy('connect_configs', connect_configs)
-        success = request_config(output.path)   
-        print success
-        print output.path 
     
     elif rospy.get_param('/mode') == "typewriter":
         scale_factor = 0.007
@@ -430,11 +418,17 @@ def initialize_field():
     # Create an array of positions relative to 0 (bottom left corner) that divide the field into sections
     field_divisions = numpy.array([0, A1_length, A1_length+B_length, half_field, half_field+A2_length, half_field + A2_length + B_length, field_length])
 
+    frame_width = 1.51 #meters
+    frame_length = .762 #meters
+
+
+
+
 def get_ball_side(data,field_divisions):
     # Data = the ball position msg
     x = data.x  # this is in image coordinates, field divisions is in field coordinates... need a transform!!
     if arm == "left":
-        my_side = numpy.array([field_divisions[1],field_divisions[3]]) 
+        my_side = numpy.array([field_divisions[0],field_divisions[3]]) 
     elif arm == "right":
         my_side = numpy.array([field_divisions[3],field_divisions[6]])
 
