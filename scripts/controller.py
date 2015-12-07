@@ -4,14 +4,17 @@ import time
 import math
 import numpy
 import ast
-from njllrd_proj2.srv import *
-from njllrd_proj2.msg import *
+from njllrd_proj3.srv import *
+from njllrd_proj3.msg import *
 from std_msgs.msg import String
 
 flag = False
-x_last = None
-y_last = None
-t_last = None
+x_last = 0           # last stored x_position of the ball
+y_last = 0           # last stored y_position of the ball
+t_last = 0           # timestamp of last stored position of the ball
+arm = None           # Indicator of if we are controlling right or left arm
+vx = 0               # x velocity of the ball, in field frame
+vy = 0               # y velocity of the ball, in field frame
 
 def controller():
     rospy.init_node('controller')
@@ -19,7 +22,19 @@ def controller():
     rospy.wait_for_service('request_orientation')
     rospy.Subscriber('user_input', String, handle_user_input)
     # subscribe to ball position topic
-    ball_pos = rospy.Subscriber("njllrd_proj3/ball_position", ball, self.get_ball_velocity)
+    rospy.Subscriber("ball_position", ball, get_ball_velocity)
+
+    # Determine which arm we are controlling
+    global arm
+    if rospy.get_param('/arm') == "left":
+        arm = "left"
+    else:
+        arm = "right"
+
+    print arm
+
+    while True:
+        i = True
 
 
     if rospy.get_param('/mode') == "connect_points":
@@ -277,7 +292,6 @@ def get_plane_points():
     while flag == False:
         x = 1
         #loop
-https://github.com/navjas73/njllrd_proj3.git
     point1 = request_position()
     flag = False
 
@@ -383,15 +397,55 @@ def move_between_strokes(stroke_request,R):
 
 
 def get_ball_velocity(data):
+    # This is a callback function for the ball_positions topic, everytime a new postion is published, the velocity is computed in this function
+    # Right now, the position is in the image frame, need to change this to field or inertial frame
     global x_last
+    global y_last
     global t_last
-    global t_last
+    global vx
+    global vy
     x = data.x
     y = data.y
     t = data.t
-    vx = (x-x_last)/(t-t_last)
-    vy = (y-y_last)/(t-t_last)
-	
+
+    dx = x-x_last
+    dy = y-y_last
+    dt = t-t_last
+    vx = dx/dt
+    vy = dy/dt
+
+    x_last = x;
+    y_last = y;
+    t_last = t;
+    ######## Since this is a callback function... need to either publish this velocity to a topic or change a global variable. For now use global var
+
+def initialize_field():
+    point1,point2,point3 = get_plane_points
+    A1_length = .20      # m, length of A section closest to goal
+    A2_length = .10      # m, length of A section closest to center
+    B_length = .25       # m, length of B section
+    field_width = .50    # m, short-side of field (only includes green area, exclude 2x4)
+    half_field = A1_length + B_length + A2_length
+    field_length = half_field*2
+    # Create an array of positions relative to 0 (bottom left corner) that divide the field into sections
+    field_divisions = numpy.array([0, A1_length, A1_length+B_length, half_field, half_field+A2_length, half_field + A2_length + B_length, field_length])
+
+def get_ball_side(data,field_divisions):
+    # Data = the ball position msg
+    x = data.x  # this is in image coordinates, field divisions is in field coordinates... need a transform!!
+    if arm == "left":
+        my_side = numpy.array([field_divisions[1],field_divisions[3]]) 
+    elif arm == "right":
+        my_side = numpy.array([field_divisions[3],field_divisions[6]])
+
+    # Check if ball is on our side of the field
+    if x > my_side[0] & x <= my_side[1]:
+        ball_onside = 1         # ball is on our side
+        # We can switch to offense now... maybe want to add a velocity checker to make sure the ball is not moving too quickly, or we might want to wait until the ball is essentially still
+    else:
+        ball_onside = 0         # ball is not on our side
+
+
 if __name__ == "__main__":
     controller()
 

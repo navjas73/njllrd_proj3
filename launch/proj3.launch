@@ -1,0 +1,18 @@
+<?xml version="1.0"?>
+
+<launch>
+    
+    <param name="mode" value="connect_points" />
+    <param name="arm" value="left" />
+    <node name="robot_interface" pkg="njllrd_proj3" type="robot_interface.py"
+        output="screen" />
+  
+    <node name="controller" pkg="njllrd_proj3" type="controller.py" 
+        output="screen" />
+
+    <node name="vision" pkg="njllrd_proj3" type="vision.py" 
+        output="screen" />
+
+  
+</launch>
+

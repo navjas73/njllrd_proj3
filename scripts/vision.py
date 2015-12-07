@@ -20,7 +20,7 @@ class image_blur:
     rospy.init_node("imaging")
 
     # Create publisher
-    self.pub = rospy.Publisher('ball_position',ball)
+    self.pub = rospy.Publisher('ball_position',ball, queue_size=10)
     # create a window to display results in
     cv2.namedWindow("image_view", 1)
 
