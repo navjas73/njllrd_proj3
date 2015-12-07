@@ -25,7 +25,7 @@ class image_blur:
     cv2.namedWindow("image_view", 1)
 
     # subscribe to proper topic
-    self.image_sub = rospy.Subscriber("camera/rgb/image_color", Image, self.callback)
+    self.image_sub = rospy.Subscriber("camera/rgb/image_color", Image, self.callback_blocks)
 
   def callback(self,data):
     """ This is a callback which recieves images and processes them. """
@@ -50,9 +50,10 @@ class image_blur:
     imgHSV = cv2.medianBlur(imgHSV,3)
     cv2.imshow("image_view_blur1", imgHSV)
 
+    #hsv_min = np.array([150,100,70])
+    #hsv_max = np.array([255,255,255])
     hsv_min = np.array([150,100,70])
-    hsv_max = np.array([255,255,255])
-
+    hsv_max = np.array([220,255,255])
 
     img_thr = cv2.inRange(imgHSV,hsv_min,hsv_max)
     cv2.imshow("image_thr", img_thr)
@@ -83,6 +84,7 @@ class image_blur:
     # Filter by Area.
     params.filterByArea = True
     params.minArea = 100
+    params.maxArea = 200
      
     # Filter by Circularity
     params.filterByCircularity = True
@@ -138,6 +140,220 @@ class image_blur:
     #cv2.imshow("image_view2", cv_image)
     cv2.waitKey(3)
 	
+
+  def callback_blocks(self,data):
+    """ This is a callback which recieves images and processes them. """
+    # convert image into openCV format
+    bridge = CvBridge()
+    try:
+      # bgr8 is the pixel encoding -- 8 bits per color, organized as blue/green/red
+      cv_image = bridge.imgmsg_to_cv2(data, "bgr8")
+    except CvBridgeError, e:
+      # all print statements should use a rospy.log_ form, don't print!
+      rospy.loginfo("Conversion failed")
+
+    # we could do anything we want with the image here
+    # for now, we'll blur using a median blur
+
+
+    cv2.imshow("rgb", cv_image)
+
+    imgHSV = cv2.cvtColor(cv_image,cv2.COLOR_BGR2HSV)
+    cv2.imshow("image_view", imgHSV)
+
+    hsv_min2 = np.array([0,0,150])
+    hsv_max2 = np.array([255,255,255])
+
+
+    # White mask
+    img_thr2 = cv2.inRange(imgHSV,hsv_min2,hsv_max2)
+    cv2.imshow("image_thr2", img_thr2)
+
+    # Blur before blue mask
+    imgHSV = cv2.medianBlur(imgHSV,3)
+    cv2.imshow("image_view_blur1", imgHSV)
+
+
+    hsv_min = np.array([80,50,70])
+    hsv_max = np.array([140,255,255])
+
+
+
+    img_thr = cv2.inRange(imgHSV,hsv_min,hsv_max)
+    cv2.imshow("image_thr", img_thr)
+
+    
+
+    img_thr = cv2.bitwise_or(img_thr,img_thr2)
+
+    img_thr = cv2.medianBlur(img_thr,7)
+    cv2.imshow("image_thr_blur", img_thr)
+
+    # Setup SimpleBlobDetector parameters.
+    params = cv2.SimpleBlobDetector_Params()
+     
+    params.filterByColor = True
+    params.blobColor = 255
+     
+    # Filter by Area.
+    params.filterByArea = True
+    params.minArea = 80
+    params.maxArea = 1000
+    
+    # Filter by Circularity
+    params.filterByCircularity = False
+    params.minCircularity = .6          # sqaure is 0.785
+    params.maxCircularity = 0.95
+     
+    # Filter by Convexity
+    params.filterByConvexity = False
+    params.minConvexity = 0.95
+     
+    # Filter by Inertia
+    params.filterByInertia = True
+    params.minInertiaRatio = 0.2
+     
+    # Create a detector with the parameters
+    ver = (cv2.__version__).split('.')
+    if int(ver[0]) < 3 :
+        detector = cv2.SimpleBlobDetector(params)
+    else :
+        detector = cv2.SimpleBlobDetector_create(params)
+
+    keypoints = detector.detect(img_thr)
+
+    if keypoints:
+        x = keypoints[0].pt[0]
+        y = keypoints[0].pt[1]
+        t = rospy.get_time()
+        self.pub.publish(x = x, y = y, t = t)
+
+        im_with_keypoints = cv2.drawKeypoints(img_thr, keypoints, np.array([]), (0,0,255), cv2.DRAW_MATCHES_FLAGS_DRAW_RICH_KEYPOINTS)
+        cv2.imshow("Keypoints", im_with_keypoints)
+    
+    #show the image
+    #cv2.imshow("image_view", imgHSV)
+    #cv2.imshow("image_view2", cv_image)
+    cv2.waitKey(3)
+    
+
+  def callback_field(self,data):
+    """ This is a callback which recieves images and processes them. """
+    # convert image into openCV format
+    bridge = CvBridge()
+    try:
+      # bgr8 is the pixel encoding -- 8 bits per color, organized as blue/green/red
+      cv_image = bridge.imgmsg_to_cv2(data, "bgr8")
+    except CvBridgeError, e:
+      # all print statements should use a rospy.log_ form, don't print!
+      rospy.loginfo("Conversion failed")
+
+    # we could do anything we want with the image here
+    # for now, we'll blur using a median blur
+
+
+    cv2.imshow("rgb", cv_image)
+
+    imgHSV = cv2.cvtColor(cv_image,cv2.COLOR_BGR2HSV)
+    cv2.imshow("image_view", imgHSV)
+
+    imgHSV = cv2.medianBlur(imgHSV,3)
+    cv2.imshow("image_view_blur1", imgHSV)
+
+    gray = cv2.cvtColor(cv_image,cv2.COLOR_BGR2GRAY)
+    gray = cv2.bilateralFilter(gray, 11, 17, 17)
+    edged = cv2.Canny(gray,30,200)
+    (cnts, _) = cv2.findContours(edged.copy(), cv2.RETR_TREE, cv2.CHAIN_APPROX_SIMPLE)
+    cnts = sorted(cnts, key = cv2.contourArea, reverse = True)[:10]
+    screenCnt = None
+
+    for c in cnts:
+    # approximate the contour
+        peri = cv2.arcLength(c, True)
+        approx = cv2.approxPolyDP(c, 0.02 * peri, True)
+     
+    # if our approximated contour has four points, then
+    # we can assume that we have found our screen
+        if len(approx) == 4:
+            screenCnt = approx
+            break
+
+    cv2.drawContours(cv_image, [screenCnt], -1, (0, 255, 0), 3)
+    cv2.imshow("Contours", cv_image)
+    #hsv_min = np.array([0,0,100])
+    #hsv_max = np.array([255,255,255])
+
+
+    #img_thr = cv2.inRange(imgHSV,hsv_min,hsv_max)
+    #cv2.imshow("image_thr", img_thr)
+
+    #img_thr = cv2.medianBlur(img_thr,5)
+    #cv2.imshow("image_thr_blur", img_thr)
+
+    #ret,thresh = cv2.threshold(img_thr,127,255,0)
+    #contours, hierarchy = cv2.findContours(img_thr,cv2.RETR_TREE,cv2.CHAIN_APPROX_SIMPLE)
+
+    #cv2.imshow("grey",thresh)
+    #cv2.drawContours(img_thr, contours, -1, (0,255,0), 3)
+    #cv2.imshow("contours",img_thr)
+
+    '''# Find index of largest contour
+    areas = [cv2.contourArea(c) for c in contours]
+    max_index = np.argmax(areas)
+    cnt = contours[max_index]
+
+    x,y,w,h = cv2.boundingRect(cnt)
+    cv2.rectangle(img_thr,(x,y),(x+w,y+h),(0,255,0),2)
+    cv2.imshow("rect",img_thr)'''
+
+    '''
+    # Setup SimpleBlobDetector parameters.
+    params = cv2.SimpleBlobDetector_Params()
+     
+    params.filterByColor = True
+    params.blobColor = 255
+     
+    # Filter by Area.
+    params.filterByArea = True
+    params.minArea = 100
+    params.maxArea = 400
+    
+    # Filter by Circularity
+    params.filterByCircularity = True
+    params.minCircularity = .7          # sqaure is 0.785
+    params.maxCircularity = 0.9
+     
+    # Filter by Convexity
+    params.filterByConvexity = False
+    params.minConvexity = 0.87
+     
+    # Filter by Inertia
+    params.filterByInertia = True
+    params.minInertiaRatio = 0.5
+     
+    # Create a detector with the parameters
+    ver = (cv2.__version__).split('.')
+    if int(ver[0]) < 3 :
+        detector = cv2.SimpleBlobDetector(params)
+    else :
+        detector = cv2.SimpleBlobDetector_create(params)
+
+    keypoints = detector.detect(img_thr)
+
+    if keypoints:
+        x = keypoints[0].pt[0]
+        y = keypoints[0].pt[1]
+        t = rospy.get_time()
+        self.pub.publish(x = x, y = y, t = t)
+
+        im_with_keypoints = cv2.drawKeypoints(img_thr, keypoints, np.array([]), (0,0,255), cv2.DRAW_MATCHES_FLAGS_DRAW_RICH_KEYPOINTS)
+        cv2.imshow("Keypoints", im_with_keypoints)
+    '''
+
+    #show the image
+    #cv2.imshow("image_view", imgHSV)
+    #cv2.imshow("image_view2", cv_image)
+    cv2.waitKey(3)
 
 if __name__ == '__main__':
     image_blur()
