@@ -33,9 +33,10 @@ def controller():
 
     print arm
 
+    ##### Testing loop for vision stuff #######
     while True:
         i = True
-
+    ###########################################
 
     if rospy.get_param('/mode') == "connect_points":
         point1, point2 = get_connect_points()
@@ -64,21 +65,46 @@ def controller():
         request = rospy.ServiceProxy('connect_waypoints', connect_waypoints)
         output = request(points)
     
-    elif rospy.get_param('/mode') == "field"
+    elif rospy.get_param('/mode') == "field":
+        (R,origin) = initialize_field()
+        print "origin"
+        print origin
+
+        x = origin[0]
+        y = origin[1]
+        z = origin[2]
+        r_t = rospy.ServiceProxy('request_translate', translate)
+        r_r = rospy.ServiceProxy('request_rotate', rotate)
+
+        new_point = origin + numpy.dot(R,numpy.array([1, 0, 0]))
+        print "new Points"
+        print new_point
+
+        translate_success = r_t(new_point[0], new_point[1], new_point[2])
+
+
+        '''
         scale_factor = 0.01
         point1, point2, point3 = get_plane_points()
         pointa = numpy.array([point1.endpoint.x, point1.endpoint.y, point1.endpoint.z])
         pointb = numpy.array([point2.endpoint.x, point2.endpoint.y, point2.endpoint.z])
-        pointc = numpy.array([point3.endpoint.x, point3.endpoint.y, point3.endpoint.z])
-        
+        # Move pointc to the bottom left corner of the field. This is kind of an approximation since the table may not be planar. Should be good enough
+        if arm == "right":
+            pointc = numpy.array([point3.endpoint.x, point3.endpoint.y + field_length/2, point3.endpoint.z])
+        else:
+            pointc = numpy.array([point3.endpoint.x, point3.endpoint.y, point3.endpoint.z])
+
         plane_vec = numpy.cross(pointa-pointb, pointb-pointc)
 
         plane_normal = plane_vec/numpy.linalg.norm(plane_vec)
 
         R = make_rotation_matrix(plane_normal)
-        orig_point = [] #get from the field
+
+        orig_point = [] #get from the field   Isn't this just [0 0 0] (bottom left corner of field) -Ricky 
         new_point = scale_factor*orig_point
         new_point = numpy.dot(R,new_point)
+        '''
+
 
     elif rospy.get_param('/mode') == "draw":
         scale_factor = 0.01
@@ -411,7 +437,6 @@ def get_ball_velocity(data):
     ######## Since this is a callback function... need to either publish this velocity to a topic or change a global variable. For now use global var
 
 def initialize_field():
-    point1,point2,point3 = get_plane_points
     A1_length = .20      # m, length of A section closest to goal
     A2_length = .10      # m, length of A section closest to center
     B_length = .25       # m, length of B section
@@ -423,6 +448,29 @@ def initialize_field():
 
     frame_width = 1.51 #meters
     frame_length = .762 #meters
+
+    # Make transformation from field/image to robot frame
+    scale_factor = 0.01
+    point1, point2, point3 = get_plane_points()
+    pointa = numpy.array([point1.endpoint.x, point1.endpoint.y, point1.endpoint.z])
+    pointb = numpy.array([point2.endpoint.x, point2.endpoint.y, point2.endpoint.z])
+
+    # Move pointc to the bottom left corner of the field. This is kind of an approximation since the table may not be planar. Should be good enough
+    if arm == "right":
+        #pointc = numpy.array([point3.endpoint.x, point3.endpoint.y + field_length/2, point3.endpoint.z])
+        pointc = numpy.array([point3.endpoint.x, point3.endpoint.y, point3.endpoint.z])
+    else:
+        pointc = numpy.array([point3.endpoint.x, point3.endpoint.y, point3.endpoint.z])
+
+    plane_vec = numpy.cross(pointa-pointb, pointb-pointc)
+    plane_normal = plane_vec/numpy.linalg.norm(plane_vec)
+    R = make_rotation_matrix(plane_normal)
+
+    #orig_point = [] #get from the field   Isn't this just [0 0 0] (bottom left corner of field)? 
+    #new_point = scale_factor*orig_point
+    #new_point = numpy.dot(R,new_point)
+    return (R, pointc)
+
 
 
 

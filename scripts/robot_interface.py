@@ -10,8 +10,8 @@ from baxter_pykdl import baxter_kinematics
 import numpy
 import random
 
-from njllrd_proj2.srv import *
-from njllrd_proj2.msg import *
+from njllrd_proj3.srv import *
+from njllrd_proj3.msg import *
 from baxter_core_msgs.srv import (
     SolvePositionIK,
     SolvePositionIKRequest,
@@ -29,9 +29,11 @@ kinematics = None
 joint_names = None
 tol         = None
 points = None
+tool_height = 0.020
 tool_length = .080
 joint_limits = None
 initial_orientation = None
+plane_point_counter = 1
 
 def move_to_point(initial_point,point):
 # if q_next in reachable_workspace 
@@ -42,8 +44,12 @@ def move_to_point(initial_point,point):
 # multiply pseudoinverse by desired velocity (J^*v_des) to get joint velocities
 # set joint velocities with set_joint_velocities
     distTraveled = 0
-    x_init = numpy.array([initial_point.x, initial_point.y, initial_point.z])
-    x_goal  = numpy.array([point.x, point.y, point.z])
+    x_init = initial_point
+    x_goal  = point
+    print"origin"
+    print x_init
+    print "target_point"
+    print x_goal
     #correct stuff for feedback
     #correct_vector = numpy.subtract(x_goal,x_init)
     correct_vector = x_goal-x_init
@@ -96,6 +102,7 @@ def move_to_point(initial_point,point):
         dist = numpy.linalg.norm(x_goal-x0)
         #print distTraveled
         #print numpy.linalg.norm(x_goal-x_init)
+
         if distTraveled >= numpy.linalg.norm(x_goal - x_init):
             at_goal = True
             print "within tolerance"
@@ -106,7 +113,7 @@ def move_to_point(initial_point,point):
 
             #uncomment for feedback stuff
             v_des = (((x_goal-x0)/dist*vel_mag - error))
-            
+            print v_des
 
             #v_des = (x_goal-x0)/dist*vel_mag
             v_des = numpy.append(v_des, [0.0,0.0,0.0]) # calculate desired velocity, zero angular velocities
@@ -120,7 +127,7 @@ def move_to_point(initial_point,point):
             
             q0 = limb.joint_angles()
             
-
+            '''
             for key, value in q0.iteritems():
                     if key == 'left_s0':
                         temp_value = value
@@ -193,13 +200,13 @@ def move_to_point(initial_point,point):
             q_dot = q_dot[0]
             #print "qdot"
             #print q_dot
-            
+            '''
             # Previous lines are objective function
 
             # Following three commands are used when objective function is off
-            #q_dot = numpy.dot(J_psuinv,v_des)
-            #q_dot = q_dot.tolist()
-            #q_dot = q_dot[0]
+            q_dot = numpy.dot(J_psuinv,v_des)
+            q_dot = q_dot.tolist()
+            q_dot = q_dot[0]
             #print "q_dot"
             #print q_dot
 
@@ -207,8 +214,9 @@ def move_to_point(initial_point,point):
             #print "joint_command"
             #print joint_command
             limb.set_joint_velocities(joint_command)
-            '''print "joint velocities"
-            print limb.joint_velocities()'''
+            print "joint velocities"
+            print limb.joint_velocities()
+
             #did this to try to set the rate of setting commands... didn't work
             #sleep(sleep_time)
             #x0last = x0 
@@ -258,6 +266,7 @@ def command_handler(data):
 
 
 def handle_request_endpoint(data):
+    global plane_point_counter
     endpoint = limb.endpoint_pose() # add in offset for tool later
     endpoint_position = point()
     q = endpoint['orientation']
@@ -271,7 +280,18 @@ def handle_request_endpoint(data):
     print "our rotation"'''
     our_rotation = quaternion_to_rotation(q[0],q[1],q[2],q[3])
     '''print our_rotation'''
-    offset_vector = numpy.array([0,0,tool_length])
+    if plane_point_counter == 1:
+        # First plane point, farthest from baxter
+        offset_vector = numpy.array([0,tool_length/2,tool_height])
+        plane_point_counter += 1
+    elif plane_point_counter == 2 or plane_point_counter == 3:
+        # Second and third plane points, closest to baxter. corner of field and center line
+        offset_vector = numpy.array([0,-tool_length/2,tool_height])
+        plane_point_counter += 1
+    elif plane_point_counter > 3:
+        # For any other request of the endpoint. Should return the center of the tool
+        offset_vector = numpy.array([0,0,tool_height])
+
     rotated_offset = numpy.dot(our_rotation,offset_vector)
     '''print "rotated offset"
     print rotated_offset'''
@@ -393,6 +413,23 @@ def reach_goal(start, goal):
             limb.set_joint_velocities(joint_command)
     return True
 
+def handle_translate(data):
+    x = data.x
+    y = data.y
+    z = data.z
+
+    current_position = limb.endpoint_pose()
+    current_position = current_position['position']
+
+    current_point = numpy.array([current_position.x, current_position.y, current_position.z])
+    target_point = numpy.array([x, y, z])
+    success = move_to_point(current_point, target_point)
+    print success
+    return True
+
+def handle_rotate(data):
+    return True
+
 def robot_interface():
     rospy.init_node('robot_interface')
     
@@ -407,7 +444,8 @@ def robot_interface():
 
     a = rospy.Service('request_orientation', request_orientation, handle_request_orientation)
 
-    k = rospy.Service('connect_configs', connect_configs, handle_connect_configs)
+    trans = rospy.Service('request_translate', translate, handle_translate)
+    rot = rospy.Service('request_rotate', rotate, handle_rotate)
 
     global joint_limits
     global limb 
@@ -418,7 +456,7 @@ def robot_interface():
     
     # Left limb
     joint_names = ['left_s0', 'left_s1', 'left_e0', 'left_e1', 'left_w0', 'left_w1', 'left_w2']
-    limb        = baxter_interface.Limb('left') #instantiate limb
+    limb        = baxter_interface.Limb(rospy.get_param("/arm")) #instantiate limb
     kinematics  = baxter_kinematics('left')
     joint_limits = numpy.array([[-2.461, .890],[-2.147,1.047],[-3.028,3.028],[-.052,2.618],[-3.059,3.059],[-1.571,2.094],[-3.059,3.059]])
     max_joint_speeds = numpy.array([2.0,2.0,2.0,2.0,4.0,4.0,4.0])

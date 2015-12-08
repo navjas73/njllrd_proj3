@@ -50,6 +50,7 @@ add_message_files(
 	point.msg
 	waypoints.msg
 	ball.msg
+    block.msg
 )
 
 ## Generate services in the 'srv' folder
@@ -58,6 +59,8 @@ add_service_files(
 	connect_waypoints.srv
 	request_endpoint.srv
 	request_orientation.srv
+    translate.srv
+    rotate.srv
 )
 
 ## Generate actions in the 'action' folder
