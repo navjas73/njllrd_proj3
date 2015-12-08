@@ -266,6 +266,10 @@ class image_blur:
 
     cv2.imshow("edged", edged)
 
+    # Trying out something new to get full field
+    # Finding intersections of lines
+    # http://opencv-code.com/tutorials/automatic-perspective-correction-for-quadrilateral-objects/
+    '''
     minLineLength = 300
     maxLineGap = 5
     lines = cv2.HoughLinesP(edged,1,np.pi/180,100,minLineLength, maxLineGap)
@@ -284,11 +288,12 @@ class image_blur:
     l3 = process_lines[bottom,:]
     l4 = process_lines[top,:]
     corners = np.array([[]])
-    corners = np.append(corners,intersection_point(l1,l3))
-    corners = np.append(corners,intersection_point(l3,l2))
-    corners = np.append(corners,intersection_point(l4,l2))
-    corners = np.append(corners,intersection_point(l4,l1))
+    corners = np.concatenate((corners,intersection_point(l1,l3)),axis=0)
+    corners = np.concatenate((corners,intersection_point(l3,l2)),axis=0)
+    corners = np.concatenate((corners,intersection_point(l4,l2)),axis=0)
+    corners = np.concatenate((corners,intersection_point(l4,l1)),axis=0)
     print corners
+    '''
 
 
     (cnts, _) = cv2.findContours(edged.copy(), cv2.RETR_TREE, cv2.CHAIN_APPROX_SIMPLE)

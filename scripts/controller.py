@@ -76,6 +76,9 @@ def controller():
         plane_normal = plane_vec/numpy.linalg.norm(plane_vec)
 
         R = make_rotation_matrix(plane_normal)
+        orig_point = [] #get from the field
+        new_point = scale_factor*orig_point
+        new_point = numpy.dot(R,new_point)
 
     elif rospy.get_param('/mode') == "draw":
         scale_factor = 0.01
