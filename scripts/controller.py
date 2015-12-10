@@ -16,6 +16,9 @@ arm = None           # Indicator of if we are controlling right or left arm
 vx = 0               # x velocity of the ball, in field frame
 vy = 0               # y velocity of the ball, in field frame
 ball_pos = None
+field_length = None
+x_goal1 = None      # end of goal closeste to baxter
+x_goal2 = None      # end of goal farthest from baxter
 
 def controller():
     rospy.init_node('controller')
@@ -93,21 +96,39 @@ def controller():
         home_success = go_home()        # move to home position and set the mode to defense
         
     elif rospy.get_param('/mode') == "defense":
+        global x_goal1
+        global x_goal2
         # try to find the ball
         # check ball side/position
         ball_side = get_ball_side(ball_pos,field_divisions)      # ball_side == 1 if on our side
         # calculate velocity, done in callback from ball_positions topic, stored as vx,vy
         if ball_side == 1:
             # check velocity
-            if vx < 0.1 & vy < 0.1
+            if vx < 0.1 & vy < 0.1:
                 # ball is still on our side
                 # switch to offense
                 rospy.set_param('/mode','offense')
             else: # ball is on our side still moving 
                 # compute ball trajectory
+                x_impact = get_ball_trajectory()
                 # if necessary, compute point to move to to block ball
+                if x_impact > x_goal1 & x_impact < x_goal2:
+                    # move arm to block accordingly
+                    # convert x_impact to baxter coordinates 
+                    new_point = origin + numpy.dot(R,numpy.array[x_impact,0,0])
+                    print "moving to block ball"
+                    translate_success = r_t(new_point[0], new_point[1], new_point[2])
+        else:
+            # ball is on opponents side
+            # compute ball trajectory
+            x_impact = get_ball_trajectory()
+            # if necessary, compute point to move to to block ball
+            if x_impact > x_goal1 & x_impact < x_goal2:
                 # move arm to block accordingly
-
+                # convert x_impact to baxter coordinates 
+                new_point = origin + numpy.dot(R,numpy.array[x_impact,0,0])
+                print "moving to block ball"
+                translate_success = r_t(new_point[0], new_point[1], new_point[2])
     # time.sleep(10)
     rospy.spin()
 
@@ -144,33 +165,6 @@ def request_config():
     request = rospy.ServiceProxy('request_orientation', request_orientation)
     output = request(yes)
     return output
-
-def get_connect_points():
-    global flag
-    flag = False
-    #wait for user to hit enter
-    while flag == False:
-        x = 1
-        #loop
-    if rospy.get_param('/mode') == "RRT" or rospy.get_param('/mode') == "BIRRT":
-        point1 = request_config()
-    else:
-        point1 = request_position()
-    flag = False
-
-    while flag == False:
-        x = 1
-        #loop
-
-    #wait for user to hit enter
-    if rospy.get_param('/mode') == "RRT" or rospy.get_param('/mode') == "BIRRT":
-        point2 = request_config()
-    else:
-        point2 = request_position()
-
-    #publish waypoints to robot_interface
-
-    return (point1, point2)
 
 def get_plane_points():
     print "Requesting three plane points. Enter point 1"
@@ -221,71 +215,6 @@ def make_rotation_matrix(plane_normal):
     R = numpy.array([[kx**2*v+c, kx*ky*v - kz*s, kx*kz*v + ky*s],[kx*kz*v + kz*s, ky**2*v + c, ky*kz*v - kx*s],[kx*kz*v - ky*s, ky*kz*v + kx*s, kz**2 * v +c]])
     return R
 
-def draw_letter(data,scale_factor,R,pointc):
-    request = rospy.ServiceProxy('connect_waypoints', connect_waypoints)
-    stroke_request = waypoints()
-    for stroke in data[:-1]: # Get all but the last, which is the point to end on
-            new_stroke = numpy.array([])
-            first_point = True
-            for orig_point in stroke:
-                new_point = scale_factor*orig_point
-                new_point = numpy.dot(R,new_point)
-                
-                if first_point == True:
-                    new_stroke = new_point
-                    first_point = False
-                else:
-                    new_stroke = numpy.vstack((new_stroke, new_point))
-    
-            for new_stroke_point in new_stroke:
-                
-                new_stroke_point = new_stroke_point+pointc
-                
-                stroke_request.points.append(make_point_from_array(new_stroke_point))
-
-            
-            # Before we start writing, lift pen and move to first point
-            go_to_stroke = move_between_strokes(stroke_request,R)
-            print "move to starting of stroke"
-            output = request(go_to_stroke)
-
-            # Send stroke
-            print "writing stroke"    
-            output = request(stroke_request)
-            
-            # clear stroke_request for next stroke
-            stroke_request = waypoints()
-
-    # After writing a letter, need to move over to next spot
-    space_point = waypoints()
-    p_end = data[-1]
-    p_end = scale_factor * p_end
-    p_end[1] = p_end[1] - .02
-    p_end = numpy.dot(R,p_end)+pointc
-    pointc = p_end
-    space_point.points.append(make_point_from_array(p_end))
-    go_to_stroke = move_between_strokes(space_point,R)
-    output = request(go_to_stroke)
-
-    return pointc
-
-def move_between_strokes(stroke_request,R):
-    go_to_stroke = waypoints()
-    current_position = request_position()
-    current_position = numpy.array([current_position.endpoint.x, current_position.endpoint.y, current_position.endpoint.z])
-    raise_height = numpy.array([0, 0, .02])
-    over_current = numpy.dot(R,raise_height) + current_position 
-    start_point = stroke_request.points[0]
-    start_point = numpy.array([start_point.x, start_point.y, start_point.z])
-    over_start = numpy.dot(R,raise_height) + start_point
-
-    go_to_stroke.points.append(make_point_from_array(current_position))
-    go_to_stroke.points.append(make_point_from_array(over_current))
-    go_to_stroke.points.append(make_point_from_array(over_start))
-    go_to_stroke.points.append(make_point_from_array(start_point))
-    return go_to_stroke
-
-
 def get_ball_velocity(data):
     # This is a callback function for the ball_positions topic, everytime a new postion is published, the velocity is computed in this function
     # Right now, the position is in the image frame, need to change this to field or inertial frame
@@ -300,7 +229,7 @@ def get_ball_velocity(data):
     t = data.t
 
     # store ball position as an array
-    ball_pos = numpy.array(x,y,t)
+    ball_pos = numpy.array([x,y,t])
 
     # compute velocity
     dx = x-x_last
@@ -314,10 +243,17 @@ def get_ball_velocity(data):
     t_last = t;
 
 def initialize_field():
+    global field_length
+    global x_goal1
+    global x_goal2
     A1_length = .20      # m, length of A section closest to goal
     A2_length = .10      # m, length of A section closest to center
     B_length = .25       # m, length of B section
     field_width = .50    # m, short-side of field (only includes green area, exclude 2x4)
+
+    x_goal1 = 10         # field coordinates, end of goal closest to baxter
+    x_goal2 = 30         # field coordinates, end of goal farthest from baxter
+
     half_field = A1_length + B_length + A2_length
     field_length = half_field*2
     # Create an array of positions relative to 0 (bottom left corner) that divide the field into sections
@@ -382,6 +318,26 @@ def get_ball_side(ball_position,field_divisions):
         ball_onside = 0         # ball is not on our side
 
     return ball_onside
+
+def get_ball_trajectory():
+    # calculate the impact location of the ball using linear trajectory ie. y = mx+b  find x intercept
+    global field_length
+    global vx
+    global vy
+    global ball_pos
+    x = ball_pos[0]
+    y = ball_pos[1]
+    if arm == "left":
+        y_offset = 0
+    else:
+        y_offest = -field_length
+
+    m = vy/vx
+    b = y-m*x
+
+    x_impact = (y_offset - b)/m
+    return x_impact
+
 
 if __name__ == "__main__":
     controller()

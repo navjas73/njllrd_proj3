@@ -48,16 +48,12 @@ class image_blur:
     # for now, we'll blur using a median blur
 
     cv2.imshow("rgb", cv_image)
-
     if calibrated == 0:
         self.track_blocks(cv_image)
         if block_array is not None:
             self.calibrate_field(cv_image)
     else:
         # Warp image
-        print M_global
-        print maxWidth_global
-        print maxHeight_global
         warp = cv2.warpPerspective(cv_image, M_global, (maxWidth_global, maxHeight_global))
         cv2.imshow("warped",warp)
         cv2.waitKey(3)      
@@ -70,8 +66,8 @@ class image_blur:
     global M_global
     global maxHeight_global
     global maxWidth_global
-    print block_array
-    print block_array.size
+    #print block_array
+    #print block_array.size
     screenCnt = np.array([[block_array[-8],block_array[-7]],[block_array[-6],block_array[-5]],[block_array[-4],block_array[-3]],[block_array[-2],block_array[-1]]])
     if screenCnt is not None:
         #pts = screenCnt.reshape(4, 2)
@@ -95,15 +91,28 @@ class image_blur:
         rect[1] = pts[np.argmin(diff)]
         rect[3] = pts[np.argmax(diff)]
 
-        print "before"
-        print rect
+        # Check differences in x and y
+        store_now = 0 
+        diff1 = abs(rect[0,1] - rect[1,1])
+        diff2 = abs(rect[1,0] - rect[2,0])
+        diff3 = abs(rect[2,1] - rect[3,1])
+        
+        #print "before"
+        #print rect
 
         #extend area
-        rect[0,0] -= 200
-        rect[3,0] -= 200
-
-        print "after"
-        print rect
+        field_extend_x = 200
+        field_extend_y = 50
+        if rospy.get_param('/arm') == 'right':
+            rect[0,0] -= field_extend_x
+            rect[3,0] -= field_extend_x
+        else:
+            rect[1,0] += field_extend_x
+            rect[2,0] += field_extend_x
+        rect[0:1,1] += field_extend_y
+        rect[2:3,1] -= field_extend_y
+        #print "after"
+        #print rect
 
         # now that we have our rectangle of points, let's compute
         # the width of our new image
@@ -133,13 +142,7 @@ class image_blur:
         M = cv2.getPerspectiveTransform(rect, dst)
         warp = cv2.warpPerspective(cv_image, M, (maxWidth, maxHeight))
 
-        # Check differences in x and y
-        store_now = 0 
-        diff1 = abs(rect[0,1] - rect[1,1])
-        diff2 = abs(rect[1,0] - rect[2,0])
-        diff3 = abs(rect[2,1] - rect[3,1])
-
-        if diff1 < 20 and diff2 < 20 and diff3 < 20:
+        if diff1 < 50 and diff2 < 50 and diff3 < 50:
             store_now = 1
 
         if store_now == 1:
@@ -222,6 +225,12 @@ class image_blur:
     global block_array
     imgHSV = cv2.cvtColor(cv_image,cv2.COLOR_BGR2HSV)
 
+    if calibrated == 0: # only look at half of the image
+        if rospy.get_param('/arm') == 'left':
+            imgHSV = imgHSV[0:-1,0:np.size(imgHSV,1)/2]
+        else:
+            imgHSV = imgHSV[0:-1,np.size(imgHSV,1)/2:-1]
+        cv2.imshow('cropped',imgHSV)
     # White mask
     hsv_min2 = np.array([100,0,150])
     hsv_max2 = np.array([255,255,255])

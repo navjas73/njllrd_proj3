@@ -10,8 +10,8 @@
     <node name="controller" pkg="njllrd_proj3" type="controller.py" 
         output="screen" />
 
-    <!--node name="vision" pkg="njllrd_proj3" type="vision.py" 
-        output="screen" /-->
+    <node name="vision" pkg="njllrd_proj3" type="vision.py" 
+        output="screen" />
 
   
 </launch>
