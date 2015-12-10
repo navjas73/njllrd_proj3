@@ -4,13 +4,13 @@
     
     <param name="mode" value="field" />
     <param name="arm" value="left" />
-    <node name="robot_interface" pkg="njllrd_proj3" type="robot_interface.py"
+    <node name="robot_interface_njllrd" pkg="njllrd_proj3" type="robot_interface_njllrd.py"
         output="screen" />
   
-    <node name="controller" pkg="njllrd_proj3" type="controller.py" 
+    <node name="controller_njllrd" pkg="njllrd_proj3" type="controller_njllrd.py" 
         output="screen" />
 
-    <node name="vision" pkg="njllrd_proj3" type="vision.py" 
+    <node name="vision_njllrd" pkg="njllrd_proj3" type="vision_njllrd.py" 
         output="screen" />
 
   
