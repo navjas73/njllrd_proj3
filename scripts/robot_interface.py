@@ -34,6 +34,8 @@ tool_length = .080
 joint_limits = None
 initial_orientation = None
 plane_point_counter = 1
+arm = None   #left or right. determined by ros param
+home_position = None
 
 def move_to_point(initial_point,point):
 # if q_next in reachable_workspace 
@@ -430,6 +432,20 @@ def handle_translate(data):
 def handle_rotate(data):
     return True
 
+def handle_request_home(data):
+    global home_position
+    print "moving to home_position"
+    limb.move_to_joint_positions(home_position)
+    print "home. ready for defense"
+    return True
+
+def handle_request_home_calibrate(data):
+    global home_position
+    home_position = limb.joint_angles()
+    print "Home angles stored"
+    print home_position
+    return True
+
 def robot_interface():
     rospy.init_node('robot_interface')
     
@@ -446,6 +462,8 @@ def robot_interface():
 
     trans = rospy.Service('request_translate', translate, handle_translate)
     rot = rospy.Service('request_rotate', rotate, handle_rotate)
+    h = rospy.Service('request_home', home, handle_request_home)
+    h_cal = rospy.Service('request_home_calibrate', home_calibrate, handle_request_home_calibrate)
 
     global joint_limits
     global limb 
@@ -454,10 +472,15 @@ def robot_interface():
     global tol
     tol         = 0.01
     
+    arm = rospy.get_param("/arm")
     # Left limb
-    joint_names = ['left_s0', 'left_s1', 'left_e0', 'left_e1', 'left_w0', 'left_w1', 'left_w2']
-    limb        = baxter_interface.Limb(rospy.get_param("/arm")) #instantiate limb
-    kinematics  = baxter_kinematics('left')
+    if arm == "left":
+        joint_names = ['left_s0', 'left_s1', 'left_e0', 'left_e1', 'left_w0', 'left_w1', 'left_w2']
+    else:
+        joint_names = ['right_s0', 'right_s1', 'right_e0', 'right_e1', 'right_w0', 'right_w1', 'right_w2']
+
+    limb        = baxter_interface.Limb(arm) #instantiate limb
+    kinematics  = baxter_kinematics(arm)
     joint_limits = numpy.array([[-2.461, .890],[-2.147,1.047],[-3.028,3.028],[-.052,2.618],[-3.059,3.059],[-1.571,2.094],[-3.059,3.059]])
     max_joint_speeds = numpy.array([2.0,2.0,2.0,2.0,4.0,4.0,4.0])
 

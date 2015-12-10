@@ -61,6 +61,8 @@ add_service_files(
 	request_orientation.srv
     translate.srv
     rotate.srv
+    home.srv
+    home_calibrate.srv
 )
 
 ## Generate actions in the 'action' folder

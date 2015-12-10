@@ -15,6 +15,7 @@ t_last = 0           # timestamp of last stored position of the ball
 arm = None           # Indicator of if we are controlling right or left arm
 vx = 0               # x velocity of the ball, in field frame
 vy = 0               # y velocity of the ball, in field frame
+ball_pos = None
 
 def controller():
     rospy.init_node('controller')
@@ -34,8 +35,8 @@ def controller():
     print arm
 
     ##### Testing loop for vision stuff #######
-    while True:
-        i = True
+    #while True:
+    #    i = True
     ###########################################
 
     if rospy.get_param('/mode') == "connect_points":
@@ -66,175 +67,46 @@ def controller():
         output = request(points)
     
     elif rospy.get_param('/mode') == "field":
+        # Calibrate the home position
+        home_cal_succ = calibrate_home()
+
+        # initialize the field, create plane, rotations, etc.
         (R,origin) = initialize_field()
+
         print "origin"
         print origin
 
         x = origin[0]
         y = origin[1]
         z = origin[2]
+
+
         r_t = rospy.ServiceProxy('request_translate', translate)
         r_r = rospy.ServiceProxy('request_rotate', rotate)
-
-        new_point = origin + numpy.dot(R,numpy.array([1, 0, 0]))
+        
+        new_point = origin + numpy.dot(R,numpy.array([0, 0, -0.01]))
         print "new Points"
         print new_point
 
         translate_success = r_t(new_point[0], new_point[1], new_point[2])
 
-
-        '''
-        scale_factor = 0.01
-        point1, point2, point3 = get_plane_points()
-        pointa = numpy.array([point1.endpoint.x, point1.endpoint.y, point1.endpoint.z])
-        pointb = numpy.array([point2.endpoint.x, point2.endpoint.y, point2.endpoint.z])
-        # Move pointc to the bottom left corner of the field. This is kind of an approximation since the table may not be planar. Should be good enough
-        if arm == "right":
-            pointc = numpy.array([point3.endpoint.x, point3.endpoint.y + field_length/2, point3.endpoint.z])
-        else:
-            pointc = numpy.array([point3.endpoint.x, point3.endpoint.y, point3.endpoint.z])
-
-        plane_vec = numpy.cross(pointa-pointb, pointb-pointc)
-
-        plane_normal = plane_vec/numpy.linalg.norm(plane_vec)
-
-        R = make_rotation_matrix(plane_normal)
-
-        orig_point = [] #get from the field   Isn't this just [0 0 0] (bottom left corner of field) -Ricky 
-        new_point = scale_factor*orig_point
-        new_point = numpy.dot(R,new_point)
-        '''
-
-
-    elif rospy.get_param('/mode') == "draw":
-        scale_factor = 0.01
-        point1, point2, point3 = get_plane_points()
-        points = waypoints()
-
-
-        pointa = numpy.array([point1.endpoint.x, point1.endpoint.y, point1.endpoint.z])
-        pointb = numpy.array([point2.endpoint.x, point2.endpoint.y, point2.endpoint.z])
-        pointc = numpy.array([point3.endpoint.x, point3.endpoint.y, point3.endpoint.z])
+        home_success = go_home()        # move to home position and set the mode to defense
         
-        plane_vec = numpy.cross(pointa-pointb, pointb-pointc)
-
-        plane_normal = plane_vec/numpy.linalg.norm(plane_vec)
-
-        R = make_rotation_matrix(plane_normal)
-
-        request = rospy.ServiceProxy('connect_waypoints', connect_waypoints)
-        print "Draw mode. Type 'maze' or 'pyramids'."
-        done = False
-        while not done:
-            letter = raw_input()
-            if letter == 'end':
-                print "I'm done"
-                done = True
-            elif letter == 'maze':
-                data = maze()
-                pointc = draw_letter(data,scale_factor*2,R,pointc)
-                print "done drawing"
-            elif letter == 'pyramids':
-                data = pyramids()
-                pointc = draw_letter(data,scale_factor,R,pointc)
-                print "done drawing"
-                '''elif letter.isalpha():    
-                possibles = globals().copy()
-                possibles.update(locals())
-                method = possibles.get(letter)
-                data = method()
-                print data
-                pointc = draw_letter(data,scale_factor,R,pointc)
-                print "done drawing"'''
-            else:
-                print "Invalid input."
-
-
-        # connect <0,0,0> and <.2,.2,0>
-        #physical placement of 3 points on plane 
-        # pt2            pt1
-        # pt3
-
-        #first_point = numpy.array([0,0,0])
-        #second_point = numpy.array([.07,-.07,0])
-
-        #first_point_rot = numpy.dot(R,first_point)
-        #second_point_rot = numpy.dot(R,second_point)
-
-        #first_point_rot_trans = first_point_rot + pointc
-        #second_point_rot_trans = second_point_rot + pointc
-
-        #points.points.append(make_point_from_array(first_point_rot_trans))
-        #points.points.append(make_point_from_array(second_point_rot_trans))
-    
-    elif rospy.get_param('/mode') == "typewriter":
-        scale_factor = 0.007
-        done = False
-        point1, point2, point3 = get_plane_points()
-        points = waypoints()
-
-        pointa = numpy.array([point1.endpoint.x, point1.endpoint.y, point1.endpoint.z])
-        pointb = numpy.array([point2.endpoint.x, point2.endpoint.y, point2.endpoint.z])
-        pointc = numpy.array([point3.endpoint.x, point3.endpoint.y, point3.endpoint.z])
-        first_point_c = pointc
-        plane_vec = numpy.cross(pointa-pointb, pointb-pointc)
-        plane_normal = plane_vec/numpy.linalg.norm(plane_vec)
-        R = make_rotation_matrix(plane_normal)
-
-        request = rospy.ServiceProxy('connect_waypoints', connect_waypoints)
-        print "Typewriter mode. Enter letters one at a time."
-
-        while not done:
-            letter = raw_input()
-            print letter
-            if letter == 'return':
-                newline = numpy.array([-10,0,0])*scale_factor
-                newline = numpy.dot(R,newline)
-                pointc = first_point_c + newline
-                first_point_c = pointc
-                stroke = waypoints()
-                stroke.points.append(make_point_from_array(pointc))
-                go_to_stroke = move_between_strokes(stroke,R)
-                output = request(go_to_stroke)
-            elif letter == 'end':
-                print "I'm done"
-                done = True
-            elif letter == 'space':
-                newline = numpy.array([0,-10,0])*scale_factor
-                newline = numpy.dot(R,newline)
-                pointc = pointc + newline
-                stroke = waypoints()
-                stroke.points.append(make_point_from_array(pointc))
-                go_to_stroke = move_between_strokes(stroke,R)
-                output = request(go_to_stroke)
-            elif len(letter) == 1:
-                if letter.isalpha():    
-                    possibles = globals().copy()
-                    possibles.update(locals())
-                    method = possibles.get(letter)
-                    data = method()
-                    print data
-                    pointc = draw_letter(data,scale_factor,R,pointc)
-                    print "Enter next letter"
-                else:
-                    print "Invalid input. Enter single lowercase letter or empty line for new line."
-            else:
-                print "Invalid input. Enter single lowercase letter or empty line for new line."
-
-            '''if letter == 'end':
-                done == True
-            elif letter == 'return':
-            	pointc[0] = first_point_c[0]-10*scale_factor
-            	pointc[1] = first_point_c[1]
-            elif letter.isalpha() and len(letter) < 2:
-                possibles = globals().copy()
-                possibles.update(locals())
-                method = possibles.get(letter)
-                data = method()
-                print data
-                pointc = draw_letter(data,scale_factor,R,pointc)
-                print "Enter next letter" '''
-
+    elif rospy.get_param('/mode') == "defense":
+        # try to find the ball
+        # check ball side/position
+        ball_side = get_ball_side(ball_pos,field_divisions)      # ball_side == 1 if on our side
+        # calculate velocity, done in callback from ball_positions topic, stored as vx,vy
+        if ball_side == 1:
+            # check velocity
+            if vx < 0.1 & vy < 0.1
+                # ball is still on our side
+                # switch to offense
+                rospy.set_param('/mode','offense')
+            else: # ball is on our side still moving 
+                # compute ball trajectory
+                # if necessary, compute point to move to to block ball
+                # move arm to block accordingly
 
     # time.sleep(10)
     rospy.spin()
@@ -331,6 +203,7 @@ def get_plane_points():
     flag = False
     #publish waypoints to robot_interface
     #print (point1, point2, point3)
+    print "plane created"
     return (point1, point2, point3)
     
 def make_rotation_matrix(plane_normal):
@@ -416,6 +289,7 @@ def move_between_strokes(stroke_request,R):
 def get_ball_velocity(data):
     # This is a callback function for the ball_positions topic, everytime a new postion is published, the velocity is computed in this function
     # Right now, the position is in the image frame, need to change this to field or inertial frame
+    global ball_pos
     global x_last
     global y_last
     global t_last
@@ -425,6 +299,10 @@ def get_ball_velocity(data):
     y = data.y
     t = data.t
 
+    # store ball position as an array
+    ball_pos = numpy.array(x,y,t)
+
+    # compute velocity
     dx = x-x_last
     dy = y-y_last
     dt = t-t_last
@@ -434,7 +312,6 @@ def get_ball_velocity(data):
     x_last = x;
     y_last = y;
     t_last = t;
-    ######## Since this is a callback function... need to either publish this velocity to a topic or change a global variable. For now use global var
 
 def initialize_field():
     A1_length = .20      # m, length of A section closest to goal
@@ -456,7 +333,7 @@ def initialize_field():
     pointb = numpy.array([point2.endpoint.x, point2.endpoint.y, point2.endpoint.z])
 
     # Move pointc to the bottom left corner of the field. This is kind of an approximation since the table may not be planar. Should be good enough
-    if arm == "right":
+    if arm == "right":  # need to add some offset to bottom left corner
         #pointc = numpy.array([point3.endpoint.x, point3.endpoint.y + field_length/2, point3.endpoint.z])
         pointc = numpy.array([point3.endpoint.x, point3.endpoint.y, point3.endpoint.z])
     else:
@@ -466,18 +343,32 @@ def initialize_field():
     plane_normal = plane_vec/numpy.linalg.norm(plane_vec)
     R = make_rotation_matrix(plane_normal)
 
-    #orig_point = [] #get from the field   Isn't this just [0 0 0] (bottom left corner of field)? 
-    #new_point = scale_factor*orig_point
-    #new_point = numpy.dot(R,new_point)
     return (R, pointc)
 
+def calibrate_home():
+    global flag
+    flag = False
+    r_h_cal = rospy.ServiceProxy('request_home_calibrate', home_calibrate)      # calibrates the home position at the start
 
+    print "Calibrate the home position"
+    #wait for user to hit enter
+    while flag == False:
+        x = 1
+        #loop
+    h_cal_success = r_h_cal(True)
+    flag = False
+    return h_cal_success
 
+def go_home():
+    r_h = rospy.ServiceProxy('request_home', home)      # go to a "home" position, starting defensive position in front of goal
+    home_success = r_h(True)
+    rospy.set_param('/mode','defense')
 
+    return home_success
 
-def get_ball_side(data,field_divisions):
-    # Data = the ball position msg
-    x = data.x  # this is in image coordinates, field divisions is in field coordinates... need a transform!!
+def get_ball_side(ball_position,field_divisions):
+    # Data = the ball pos array
+    x = ball_position[0]  # this is in image coordinates, field divisions is in field coordinates... need a transform!!
     if arm == "left":
         my_side = numpy.array([field_divisions[0],field_divisions[3]]) 
     elif arm == "right":
@@ -490,6 +381,7 @@ def get_ball_side(data,field_divisions):
     else:
         ball_onside = 0         # ball is not on our side
 
+    return ball_onside
 
 if __name__ == "__main__":
     controller()
