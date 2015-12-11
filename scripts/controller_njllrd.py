@@ -17,9 +17,12 @@ vx = 0               # x velocity of the ball, in field frame
 vy = 0               # y velocity of the ball, in field frame
 ball_pos = None
 field_length = None
+field_width = None
 x_goal1 = None      # end of goal closeste to baxter
 x_goal2 = None      # end of goal farthest from baxter
 field_divisions = None
+field_width_pixels = None
+field_length_pixels = None
 
 def controller_njllrd():
     rospy.init_node('controller_njllrd')
@@ -94,6 +97,12 @@ def controller_njllrd():
 
             translate_success = r_t(new_point[0], new_point[1], new_point[2])
 
+            global field_length_pixels
+            global field_width_pixels
+            field_length_pixels = rospy.get_param("/image_width")
+            field_width_pixels = rospy.get_param("/image_height")
+            print "here"
+            print rospy.get_param("/image_height")
             home_success = go_home()        # move to home position and set the mode to defense
             
         elif rospy.get_param('/mode') == "defense":
@@ -128,7 +137,11 @@ def controller_njllrd():
                         #print "moving to block ball"
                         translate_success = r_t(new_point[0], new_point[1], new_point[2])
             elif (vx != 0) and (vy != 0):
-                # ball is on opponents side
+                print "ball positions velocity not 0"
+                print ball_pos
+                translate_success = r_t(ball_pos[0], ball_pos[1], origin[2]) #move to ball TEST
+
+                '''# ball is on opponents side
                 #print "ball not on our side"
                 # compute ball trajectory
                 x_impact = get_ball_trajectory()
@@ -139,6 +152,13 @@ def controller_njllrd():
                     new_point = origin + numpy.dot(R,numpy.array([x_impact,0,0]))
                     #print "moving to block ball"
                     translate_success = r_t(new_point[0], new_point[1], new_point[2])
+                    '''
+
+            else: # move to ball TEST
+                print "ball positions"
+                print ball_pos
+                translate_success = r_t(ball_pos[0], ball_pos[1], origin[2])
+
         # time.sleep(10)
     rospy.spin()
 
@@ -228,38 +248,55 @@ def make_rotation_matrix(plane_normal):
 def get_ball_velocity(data):
     # This is a callback function for the ball_positions topic, everytime a new postion is published, the velocity is computed in this function
     # Right now, the position is in the image frame, need to change this to field or inertial frame
-    global ball_pos
-    global x_last
-    global y_last
-    global t_last
-    global vx
-    global vy
-    x = data.x
-    y = data.y
-    t = data.t
-    print "ball_x"
-    print x
-    print "ball_y"
-    print y
 
-    # transform position and scale from image to field
-    ######## HERE IS THE ISSUE.. NEED TO TRANSFORM IMAGE TO FIELD!!!!!! ############
-    # store ball position as an array
-    ball_pos = numpy.array([x,y,t])
+    global field_width_pixels
+    if field_width_pixels: 
 
-    # compute velocity
-    dx = x-x_last
-    dy = y-y_last
-    dt = t-t_last
-    vx = dx/dt
-    vy = dy/dt
+        global ball_pos
+        global x_last
+        global y_last
+        global t_last
+        global vx
+        global vy
+        
+        global field_width
 
-    x_last = x;
-    y_last = y;
-    t_last = t;
+        image_x = data.x
+        image_y = data.y
+        t = data.t
+        print "a"
+        print field_width_pixels
+        print "b"
+        print image_x
+        print "c"
+        print field_width
+        # transform position and scale from image to field
+        ######## HERE IS THE ISSUE.. NEED TO TRANSFORM IMAGE TO FIELD!!!!!! ############
+
+        # x is measured from bottom of field, top of image. Also needs to be scaled.
+        x = (field_width_pixels - image_x)*field_width/field_width_pixels
+
+        # y needs to be scaled, and direction needs to be reversed
+        y = -image_y*field_length/field_length_pixels
+
+        
+        # store ball position as an array
+        ball_pos = numpy.array([x,y,t])
+
+        # compute velocity
+        dx = x-x_last
+        dy = y-y_last
+        dt = t-t_last
+        vx = dx/dt
+        vy = dy/dt
+
+        x_last = x;
+        y_last = y;
+        t_last = t;
 
 def initialize_field():
     global field_length
+    global field_width
     global x_goal1
     global x_goal2
     global field_divisions

@@ -77,10 +77,10 @@ def move_to_point(initial_point,point):
     time_initial = rospy.get_time();
     deltaT  =  0;
     while not at_goal:
-        print"origin"
+        '''print"x_init"
         print x_init
         print "target_point"
-        print x_goal
+        print x_goal'''
         #limb.exit_control_mode()
         #recalculating position every time
         #comment when set position once
@@ -119,7 +119,7 @@ def move_to_point(initial_point,point):
 
             #uncomment for feedback stuff
             v_des = (((x_goal-x0)/dist*vel_mag - error))
-            print v_des
+            #print v_des
 
             #v_des = (x_goal-x0)/dist*vel_mag
             v_des = numpy.append(v_des, [0.0,0.0,0.0]) # calculate desired velocity, zero angular velocities

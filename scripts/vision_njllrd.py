@@ -151,7 +151,10 @@ class image_blur:
 
     cv2.imshow("warped",warp)
 
+    height, width, channels = warp.shape
 
+    rospy.set_param('/image_height', height)
+    rospy.set_param('/image_width', width)
     #show the image
     #cv2.imshow("image_view", imgHSV)
     #cv2.imshow("image_view2", cv_image)
