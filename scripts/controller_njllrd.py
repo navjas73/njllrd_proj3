@@ -175,26 +175,58 @@ def controller_njllrd():
             # check straight shot, and two bank shots aiming for sides of goal
             # check to make sure no blocks in path of the ball's trajectory
             if arm == 'right':
-                target_point = [field_width/2,0] 
+                target_point = numpy.array([field_width/2,0])
             else:
-                target_point = [field_width/2,field_length]
+                target_point = numpy.array([field_width/2,field_length])
 
-            #intersection = check_for_blocks(target_point)
+            bank_offset = numpy.array([0.05,0])
+            intersection = check_for_blocks(target_point,ball_pos)
+            print "intersection_straight"
+            print intersection 
+
+            if intersection !=0:
+
+                (theta,new_target_point) = get_bank(target_point+bank_offset)
+                intersection1 = check_for_blocks(new_target_point,ball_pos)
+                intersection2 = check_for_blocks(target_point,new_target_point)
+                print "intersection_up"
+                print intersection1
+                print intersection2
+
+                if intersection1 != 0  or intersection2 !=0:
+                    (theta,new_target_point) = get_bank(target_point-bank_offset)
+                    intersection3 = check_for_blocks(new_target_point,ball_pos)
+                    intersection4 = check_for_blocks(target_point,new_target_point)
+                    print "intersection_down"
+                    print intersection3
+                    print intersection4
             # move to starting point
-            home_success = go_home()
+            # home_success = go_home()
             
+            if intersection == 0:
+                # shoot straight
+                
+
+            elif intersection1 == 0 and intersection2 == 0:
+                # shoot up
+
+            elif intersection3 == 0 and intersection4 == 0:
+                # shoot down
+
+            else:
+                # blast through the middle
 
 
 
 
             # strike ball
-            if arm == 'right':
+            '''if arm == 'right':
                 print "striking ball"
                 strike_end_point = numpy.array([ball_pos[0],ball_pos[1]-.02, origin[2]])
                 translate_success = r_t(strike_end_point[0],strike_end_point[1],strike_end_point[2])
-
+            '''
             # move to home, set to defense
-            home_success = go_home()
+            #home_success = go_home()
             
 
             '''
@@ -463,22 +495,29 @@ def get_ball_trajectory():
 
     return x_impact
 
-def check_for_blocks(target_point):
+def check_for_blocks(target_point,start_point):
     global block_positions
     intersection = 0
-    point1 = [ball_pos[0], ball_pos[1]]
-    point2 = [target_point[0],target_point[1]]
-    line1 = [point1,point2]
-    for i in range(0,len(block_positions),2):
-        block_x = block_positions[i]
-        block_y = block_positions[i+1]
-        point1b = [block_x+0.045, block_y]
-        point2b = [block_x-0.045, block_y]
-        line2 = [point1b,point2b]
-        # check intersection
-        check = line_intersection(line1,line2)
-        if check == 1:
-            intersection = 1
+    if block_positions != None:
+        point1 = [start_point[0], start_point[1]]
+        point2 = [target_point[0],target_point[1]]
+        line1 = [point1,point2]
+        for i in range(0,len(block_positions),2):
+            block_x = block_positions[i]
+            block_y = block_positions[i+1]
+            point1b = [block_x+0.045, block_y]
+            point2b = [block_x-0.045, block_y]
+            line2 = [point1b,point2b]
+            # check intersection
+            #print "line1"
+            #print line1
+            #print "line2"
+            #print line2 
+            check = line_intersection(line1,line2)
+            #print "check"
+            #print check
+            if check == 1:
+                intersection = 1
     return intersection
 
 
@@ -493,6 +532,7 @@ def update_block_positions(data):
     block_positions = numpy.array(data.block)
 
     for i in range(0,len(block_positions),2):
+
         image_x = block_positions[i]
         image_y = block_positions[i+1]
         x = (field_width_pixels - image_y)*field_width/field_width_pixels
@@ -501,6 +541,18 @@ def update_block_positions(data):
         block_positions[i+1] = y
 
 def line_intersection(line1, line2):
+    m = (line1[1][0]-line1[0][0]) / (line1[1][1]-line1[0][1]) 
+    b = line1[0][0]-m*line1[0][1]
+    '''print "m"
+    print m
+    print "b"
+    print b'''
+    check = m*line2[0][1] + b
+    if check < line2[0][0] and check > line2[1][0]:
+        intersection = 1
+    else:
+        intersection = 0
+    '''
     xdiff = (line1[0][0] - line1[1][0], line2[0][0] - line2[1][0])
     ydiff = (line1[0][1] - line1[1][1], line2[0][1] - line2[1][1]) #Typo was here
 
@@ -513,6 +565,7 @@ def line_intersection(line1, line2):
 
     else:
         intersection = 1
+    '''
     
     return intersection
 

@@ -224,7 +224,8 @@ class image_blur:
         x = keypoints[0].pt[0]
         y = keypoints[0].pt[1]
         t = rospy.get_time()
-        self.pub.publish(x = x, y = y, t = t)
+        if x != None and y != None:
+            self.pub.publish(x = x, y = y, t = t)
 
         im_with_keypoints = cv2.drawKeypoints(img_thr, keypoints, np.array([]), (0,0,255), cv2.DRAW_MATCHES_FLAGS_DRAW_RICH_KEYPOINTS)
         cv2.imshow("Keypoints", im_with_keypoints)
@@ -312,7 +313,9 @@ class image_blur:
         for block_pos in keypoints:
             block_array = np.append(block_array, block_pos.pt[0])
             block_array = np.append(block_array, block_pos.pt[1])
-        self.pub_block.publish(block = block_array)
+
+        if block_array != None:
+            self.pub_block.publish(block = block_array)
     cv2.waitKey(3)
 
 if __name__ == '__main__':
