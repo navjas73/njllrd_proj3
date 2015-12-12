@@ -52,9 +52,18 @@ class image_blur:
         self.track_blocks(cv_image)
         if block_array is not None:
             self.calibrate_field(cv_image)
+            warp = cv2.warpPerspective(cv_image, M_global, (maxWidth_global*2, maxHeight_global))
+            height, width, channels = warp.shape
+
+            rospy.set_param('/image_height', height)
+            rospy.set_param('/image_width', width)
     else:
         # Warp image
-        warp = cv2.warpPerspective(cv_image, M_global, (maxWidth_global+350, maxHeight_global))
+        warp = cv2.warpPerspective(cv_image, M_global, (maxWidth_global*2, maxHeight_global))
+        #height, width, channels = warp.shape
+
+    #rospy.set_param('/image_height', height)
+    #rospy.set_param('/image_width', width)
         cv2.imshow("warped",warp)
         cv2.waitKey(3)      
         self.track_ball(warp)
@@ -151,10 +160,10 @@ class image_blur:
 
     cv2.imshow("warped",warp)
 
-    height, width, channels = warp.shape
+    #height, width, channels = warp.shape
 
-    rospy.set_param('/image_height', height)
-    rospy.set_param('/image_width', width)
+    #rospy.set_param('/image_height', height)
+    #rospy.set_param('/image_width', width)
     #show the image
     #cv2.imshow("image_view", imgHSV)
     #cv2.imshow("image_view2", cv_image)
@@ -171,7 +180,7 @@ class image_blur:
     #hsv_min = np.array([150,100,70])
     #hsv_max = np.array([255,255,255])
     hsv_min = np.array([150,100,70])
-    hsv_max = np.array([255,255,255])
+    hsv_max = np.array([245,255,255])
 
     img_thr = cv2.inRange(imgHSV,hsv_min,hsv_max)
     cv2.imshow("image_thr", img_thr)
@@ -219,6 +228,8 @@ class image_blur:
 
         im_with_keypoints = cv2.drawKeypoints(img_thr, keypoints, np.array([]), (0,0,255), cv2.DRAW_MATCHES_FLAGS_DRAW_RICH_KEYPOINTS)
         cv2.imshow("Keypoints", im_with_keypoints)
+        #print "keypoints"
+        #print len(keypoints)
     cv2.waitKey(3)
 
   def track_blocks(self,cv_image):
@@ -232,7 +243,7 @@ class image_blur:
             imgHSV = imgHSV[0:-1,np.size(imgHSV,1)/2:-1]
         cv2.imshow('cropped',imgHSV)
     # White mask
-    hsv_min2 = np.array([100,0,150])
+    hsv_min2 = np.array([100,100,150])
     hsv_max2 = np.array([255,255,255])
 
     # Threshold with white mask
@@ -244,7 +255,9 @@ class image_blur:
     #cv2.imshow("blurred image", imgHSV)
 
     # Blue Mask
-    hsv_min = np.array([80,50,70])
+    #hsv_min = np.array([80,50,70])
+    #hsv_max = np.array([140,255,255])
+    hsv_min = np.array([100,50,150])
     hsv_max = np.array([140,255,255])
 
     # Threshold with blue mask
@@ -266,7 +279,7 @@ class image_blur:
      
     # Filter by Area.
     params.filterByArea = True
-    params.minArea = 200
+    params.minArea = 150
     params.maxArea = 1000
     
     # Filter by Circularity
@@ -292,19 +305,14 @@ class image_blur:
     keypoints = detector.detect(img_thr)
 
     if keypoints:
-        x = keypoints[0].pt[0]
-        y = keypoints[0].pt[1]
-        t = rospy.get_time()
-        self.pub.publish(x = x, y = y, t = t)
-
         im_with_keypoints = cv2.drawKeypoints(img_thr, keypoints, np.array([]), (0,0,255), cv2.DRAW_MATCHES_FLAGS_DRAW_RICH_KEYPOINTS)
         cv2.imshow("Keypoints blocks", im_with_keypoints)
 
-    block_array = np.array([])
-    for block_pos in keypoints:
-        block_array = np.append(block_array, block_pos.pt[0])
-        block_array = np.append(block_array, block_pos.pt[1])
-    self.pub_block.publish(block = block_array)
+        block_array = np.array([])
+        for block_pos in keypoints:
+            block_array = np.append(block_array, block_pos.pt[0])
+            block_array = np.append(block_array, block_pos.pt[1])
+        self.pub_block.publish(block = block_array)
     cv2.waitKey(3)
 
 if __name__ == '__main__':

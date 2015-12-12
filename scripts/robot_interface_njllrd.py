@@ -63,7 +63,7 @@ def move_to_point(initial_point,point):
     #print x_goal 
     at_goal = False
     #vel_mag = 0.02
-    vel_mag = .02
+    vel_mag = .1
     kp = .3
     deltaT = 0
     x0last = x_init;
@@ -77,10 +77,10 @@ def move_to_point(initial_point,point):
     time_initial = rospy.get_time();
     deltaT  =  0;
     while not at_goal:
-        '''print"x_init"
+        print"x_init"
         print x_init
         print "target_point"
-        print x_goal'''
+        print x_goal
         #limb.exit_control_mode()
         #recalculating position every time
         #comment when set position once

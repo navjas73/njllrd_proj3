@@ -80,6 +80,8 @@ def controller_njllrd():
             # initialize the field, create plane, rotations, etc.
             (R,origin) = initialize_field()
 
+            print R
+
             print "origin"
             print origin
 
@@ -90,12 +92,6 @@ def controller_njllrd():
 
             r_t = rospy.ServiceProxy('request_translate', translate)
             r_r = rospy.ServiceProxy('request_rotate', rotate)
-            
-            new_point = origin + numpy.dot(R,numpy.array([0, 0, -0.01]))
-            print "new Points"
-            print new_point
-
-            translate_success = r_t(new_point[0], new_point[1], new_point[2])
 
             global field_length_pixels
             global field_width_pixels
@@ -104,60 +100,77 @@ def controller_njllrd():
             print "here"
             print rospy.get_param("/image_height")
             home_success = go_home()        # move to home position and set the mode to defense
-            
+            print rospy.get_param('/mode')
         elif rospy.get_param('/mode') == "defense":
             global x_goal1
             global x_goal2
             global field_divisions
             # try to find the ball
             # check ball side/position
-            ball_side = get_ball_side(ball_pos,field_divisions)      # ball_side == 1 if on our side
-            # calculate velocity, done in callback from ball_positions topic, stored as vx,vy
-            if ball_side == 1:
-                #print "ball on our side"
-                # check velocity
+            print ball_pos
+            if ball_pos is not None:
+                ball_side = get_ball_side(ball_pos,field_divisions)      # ball_side == 1 if on our side
+                # calculate velocity, done in callback from ball_positions topic, stored as vx,vy
+                print "velocities"
                 print vx
                 print vy
-                if vx < 0.01 and vy < 0.01:
-                    # ball is still on our side
-                    # switch to offense
-                    #print "ball still"
-                    rospy.set_param('/mode','offense')
-                elif (vx != 0) and (vy != 0): # ball is on our side still moving 
-                    #print "ball moving on our side"
+                print ball_side
+                if ball_side == 1:
+                    #print "ball on our side"
+                    # check velocity
+                    print vx
+                    print vy
+                    if vx < 0.01 and vy < 0.01:
+                        # ball is still on our side
+                        # switch to offense
+                        #print "ball still"
+                        rospy.set_param('/mode','offense')
+                    elif (vx != 0) and (vy != 0): # ball is on our side still moving 
+                        #print "ball moving on our side"
+                        # compute ball trajectory
+                        x_impact = get_ball_trajectory()
+                        # if necessary, compute point to move to to block ball
+                        if x_impact > x_goal1 and x_impact < x_goal2:
+                            # move arm to block accordingly
+                            # convert x_impact to baxter coordinates 
+                            print "ximpact"
+                            print x_impact
+                            new_point = origin + numpy.dot(R,numpy.array([x_impact,0,0]))
+                            #print "moving to block ball"
+                            translate_success = r_t(new_point[0], new_point[1], new_point[2])
+                elif (vx != 0) and (vy != 0):
+                    print "ball positions velocity not 0"
+                    print "ball_pos"
+                    print ball_pos
+                    new_point = origin + numpy.dot(R,numpy.array([ball_pos[0],-ball_pos[1],0]))
+                    print "origin"
+                    print origin
+                    print "new_point"
+                    print new_point
+                    translate_success = r_t(new_point[0], new_point[1], new_point[2]) #move to ball TEST
+
+                    '''# ball is on opponents side
+                    #print "ball not on our side"
                     # compute ball trajectory
                     x_impact = get_ball_trajectory()
                     # if necessary, compute point to move to to block ball
                     if x_impact > x_goal1 and x_impact < x_goal2:
                         # move arm to block accordingly
                         # convert x_impact to baxter coordinates 
-                        print "ximpact"
-                        print x_impact
                         new_point = origin + numpy.dot(R,numpy.array([x_impact,0,0]))
                         #print "moving to block ball"
                         translate_success = r_t(new_point[0], new_point[1], new_point[2])
-            elif (vx != 0) and (vy != 0):
-                print "ball positions velocity not 0"
-                print ball_pos
-                translate_success = r_t(ball_pos[0], ball_pos[1], origin[2]) #move to ball TEST
+                        '''
 
-                '''# ball is on opponents side
-                #print "ball not on our side"
-                # compute ball trajectory
-                x_impact = get_ball_trajectory()
-                # if necessary, compute point to move to to block ball
-                if x_impact > x_goal1 and x_impact < x_goal2:
-                    # move arm to block accordingly
-                    # convert x_impact to baxter coordinates 
-                    new_point = origin + numpy.dot(R,numpy.array([x_impact,0,0]))
-                    #print "moving to block ball"
-                    translate_success = r_t(new_point[0], new_point[1], new_point[2])
-                    '''
-
-            else: # move to ball TEST
-                print "ball positions"
-                print ball_pos
-                translate_success = r_t(ball_pos[0], ball_pos[1], origin[2])
+                else: # move to ball TEST
+                    print "ball positions"
+                    print ball_pos
+                    new_point = origin + numpy.dot(R,numpy.array([ball_pos[0],-ball_pos[1],0]))
+                    print "origin"
+                    print origin
+                    print "new_point"
+                    print new_point
+                    translate_success = r_t(new_point[0], new_point[1], new_point[2]) #move to ball TEST
 
         # time.sleep(10)
     rospy.spin()
@@ -264,21 +277,27 @@ def get_ball_velocity(data):
         image_x = data.x
         image_y = data.y
         t = data.t
-        print "a"
+        '''print "field width"
         print field_width_pixels
-        print "b"
+        print "field length"
+        print field_length_pixels
+        print "image_x"
         print image_x
-        print "c"
-        print field_width
+        print "image_y"
+        print image_y'''
         # transform position and scale from image to field
         ######## HERE IS THE ISSUE.. NEED TO TRANSFORM IMAGE TO FIELD!!!!!! ############
 
         # x is measured from bottom of field, top of image. Also needs to be scaled.
-        x = (field_width_pixels - image_x)*field_width/field_width_pixels
+        x = (field_width_pixels - image_y)*field_width/field_width_pixels
 
         # y needs to be scaled, and direction needs to be reversed
-        y = -image_y*field_length/field_length_pixels
+        y = -image_x*field_length/field_length_pixels
 
+        #print "field x"
+        #print x
+        #print "field y"
+        #print y
         
         # store ball position as an array
         ball_pos = numpy.array([x,y,t])
@@ -303,22 +322,21 @@ def initialize_field():
     A1_length = .20      # m, length of A section closest to goal
     A2_length = .10      # m, length of A section closest to center
     B_length = .25       # m, length of B section
-    field_width = .762    # m, short-side of field (only includes green area, exclude 2x4)
+    field_width = .68    # m, short-side of field (only includes green area, exclude 2x4)
 
     x_goal1 = 0.20         # field coordinates, end of goal closest to baxter
     x_goal2 = 0.52         # field coordinates, end of goal farthest from baxter
 
     #half_field = A1_length + B_length + A2_length
-    field_length = 1.51
+    field_length = 1.37
     half_field = field_length/2
     # Create an array of positions relative to 0 (bottom left corner) that divide the field into sections
-    field_divisions = numpy.array([0, A1_length, A1_length+B_length, half_field, half_field+A2_length, half_field + A2_length + B_length, field_length])
+    field_divisions = numpy.array([0, -A1_length, -A1_length-B_length, -half_field, -half_field-A2_length, -half_field - A2_length - B_length, -field_length])
 
-    frame_width = 1.51 #meters
-    frame_length = .762 #meters
+    frame_width = .762 #meters
+    frame_length = 1.51 #meters
 
     # Make transformation from field/image to robot frame
-    scale_factor = 0.01
     point1, point2, point3 = get_plane_points()
     pointa = numpy.array([point1.endpoint.x, point1.endpoint.y, point1.endpoint.z])
     pointb = numpy.array([point2.endpoint.x, point2.endpoint.y, point2.endpoint.z])
@@ -359,14 +377,14 @@ def go_home():
 
 def get_ball_side(ball_position,field_divisions):
     # Data = the ball pos array
-    x = ball_position[0]  # this is in image coordinates, field divisions is in field coordinates... need a transform!!
+    y = ball_position[1]  # this is in image coordinates, field divisions is in field coordinates... need a transform!!
     if arm == "left":
         my_side = numpy.array([field_divisions[0],field_divisions[3]]) 
     elif arm == "right":
         my_side = numpy.array([field_divisions[3],field_divisions[6]])
 
     # Check if ball is on our side of the field
-    if (x > my_side[0]) and (x <= my_side[1]):
+    if (y < my_side[0]) and (y >= my_side[1]):
         ball_onside = 1         # ball is on our side
         # We can switch to offense now... maybe want to add a velocity checker to make sure the ball is not moving too quickly, or we might want to wait until the ball is essentially still
     else:
