@@ -29,13 +29,15 @@ kinematics = None
 joint_names = None
 tol         = None
 points = None
-tool_height = 0.020
-tool_length = .080
+tool_height = 0
+tool_length = .13
+tool_width = 0.02
 joint_limits = None
 initial_orientation = None
 plane_point_counter = 1
 arm = None   #left or right. determined by ros param
 home_position = None
+theta0 = None
 
 def move_to_point(initial_point,point):
 # if q_next in reachable_workspace 
@@ -48,7 +50,7 @@ def move_to_point(initial_point,point):
     distTraveled = 0
     x_init = initial_point
     x_goal  = point
-    print"origin"
+    print"x_init"
     print x_init
     print "target_point"
     print x_goal
@@ -63,7 +65,7 @@ def move_to_point(initial_point,point):
     #print x_goal 
     at_goal = False
     #vel_mag = 0.02
-    vel_mag = .1
+    vel_mag = .5
     kp = .3
     deltaT = 0
     x0last = x_init;
@@ -77,10 +79,10 @@ def move_to_point(initial_point,point):
     time_initial = rospy.get_time();
     deltaT  =  0;
     while not at_goal:
-        print"x_init"
+        '''print"x_init"
         print x_init
         print "target_point"
-        print x_goal
+        print x_goal'''
         #limb.exit_control_mode()
         #recalculating position every time
         #comment when set position once
@@ -93,10 +95,11 @@ def move_to_point(initial_point,point):
         offset_vector = numpy.array([0,0,tool_length])
         rotated_offset = numpy.dot(x0rotmax,offset_vector)
 
-        x0 = numpy.array([x0.x+rotated_offset[0,0], x0.y+rotated_offset[0,1], x0.z+rotated_offset[0,2]])
+        #x0 = numpy.array([x0.x+rotated_offset[0,0], x0.y+rotated_offset[0,1], x0.z+rotated_offset[0,2]])
+        x0 = numpy.array([x0.x, x0.y, x0.z])
 
-
-        distTraveled = numpy.linalg.norm(x0-x_init)
+        distTraveled = distTraveled + numpy.linalg.norm(x0-x0last)
+        x0last = x0
         
 
         deltaT = rospy.get_time() - time_initial;
@@ -106,8 +109,10 @@ def move_to_point(initial_point,point):
         
         #dist = numpy.linalg.norm(numpy.subtract(x_goal,x0))
         dist = numpy.linalg.norm(x_goal-x0)
-        #print distTraveled
-        #print numpy.linalg.norm(x_goal-x_init)
+        print "distTraveled"
+        print distTraveled
+        print "distTraveledcheck"
+        print numpy.linalg.norm(x_goal-x_init)
 
         if distTraveled >= numpy.linalg.norm(x_goal - x_init):
             at_goal = True
@@ -282,31 +287,28 @@ def handle_request_endpoint(data):
     endpoint_position.x = endpoint['position'][0]
     endpoint_position.y = endpoint['position'][1]
     endpoint_position.z = endpoint['position'][2]
-    '''print endpoint_position
-    print "our rotation"'''
-    our_rotation = quaternion_to_rotation(q[0],q[1],q[2],q[3])
+    print endpoint_position
+    #print "our rotation"
+    #our_rotation = quaternion_to_rotation(q[0],q[1],q[2],q[3])
     '''print our_rotation'''
     if plane_point_counter == 1:
-        # First plane point, farthest from baxter
-        offset_vector = numpy.array([tool_length/2,0,tool_height])
+        # First plane point, corner
+        offset_vector = numpy.array([-tool_length/2,tool_width,-tool_height])
         plane_point_counter += 1
-    elif plane_point_counter == 2 or plane_point_counter == 3:
-        # Second and third plane points, closest to baxter. corner of field and center line
-        offset_vector = numpy.array([-tool_length/2,0,tool_height])
-        plane_point_counter += 1
-    elif plane_point_counter > 3:
+    elif plane_point_counter > 1:
         # For any other request of the endpoint. Should return the center of the tool
-        offset_vector = numpy.array([0,0,tool_height])
+        offset_vector = numpy.array([0,0,-tool_height])
 
-    rotated_offset = numpy.dot(our_rotation,offset_vector)
+    #rotated_offset = numpy.dot(our_rotation,offset_vector)
     '''print "rotated offset"
     print rotated_offset'''
-    endpoint_position.x = endpoint_position.x + rotated_offset[0,0]
+    endpoint_position.x = endpoint_position.x + offset_vector[0]
     #print rotated_offset[0,0]
-    endpoint_position.y = endpoint_position.y + rotated_offset[0,1]
-    endpoint_position.z = endpoint_position.z + rotated_offset[0,2]
+    endpoint_position.y = endpoint_position.y + offset_vector[1]
+    endpoint_position.z = endpoint_position.z + offset_vector[2]
 
-    endpoint_position
+    print "endpoint position 2"
+    print endpoint_position
 
     '''print "offset_vector"
     print offset_vector'''
@@ -435,6 +437,17 @@ def handle_translate(data):
     return True
 
 def handle_rotate(data):
+    global theta0
+    theta = data.theta
+    print 'theta0'
+    print theta0
+    new_theta = theta+theta0
+    #joint_command = dict(zip(rospy.get_param('/arm') + '_w2',new_theta))
+    joint_command = {rospy.get_param('/arm') + '_w2': new_theta}
+    print "joint_command"
+    print joint_command 
+    limb.move_to_joint_positions(joint_command)
+
     return True
 
 def handle_request_home(data):
@@ -446,7 +459,9 @@ def handle_request_home(data):
 
 def handle_request_home_calibrate(data):
     global home_position
+    global theta0
     home_position = limb.joint_angles()
+    theta0 = limb.joint_angle(rospy.get_param('/arm') + '_w2')
     print "Home angles stored"
     print home_position
     return True

@@ -238,9 +238,9 @@ class image_blur:
 
     if calibrated == 0: # only look at half of the image
         if rospy.get_param('/arm') == 'left':
-            imgHSV = imgHSV[0:-1,0:np.size(imgHSV,1)/2]
+            imgHSV = imgHSV[0:-1,0:np.size(imgHSV,1)/2 + 50]
         else:
-            imgHSV = imgHSV[0:-1,np.size(imgHSV,1)/2:-1]
+            imgHSV = imgHSV[0:-1,np.size(imgHSV,1)/2-50:-1]
         cv2.imshow('cropped',imgHSV)
     # White mask
     hsv_min2 = np.array([100,100,150])

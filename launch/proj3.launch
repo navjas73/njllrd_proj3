@@ -3,7 +3,7 @@
 <launch>
     
     <param name="mode" value="field" />
-    <param name="arm" value="left" />
+    <param name="arm" value="right" />
     <node name="robot_interface_njllrd" pkg="njllrd_proj3" type="robot_interface_njllrd.py"
         output="screen" />
   
