@@ -60,6 +60,8 @@ def controller_njllrd():
 
     print arm
 
+
+
     ##### Testing loop for vision stuff #######
     #while True:
     #    i = True 
@@ -91,7 +93,27 @@ def controller_njllrd():
             print points.points
             request = rospy.ServiceProxy('connect_waypoints', connect_waypoints)
             output = request(points)
+        elif rospy.get_param('/mode') == "sweeper":
+            needs_sweep = True
+                while needs_sweep:
+                    needs_sweep = False
+                    for i in range(0,len(block_positions),2):
+                        x = block_positions[i]
+                        y = block_positions[i+1] 
+                        if arm = "right":
+                            if y > field_length - .30:
+                                needs_sweep = True
+                        else
+                            if y < .30:
+                                needs_sweep = True
+                    if needs_sweep:
+                        sweep()
+
+                        
+                       
         
+        elif rospy.get_param('/mode') == "wait":
+            print "waiting"
         elif rospy.get_param('/mode') == "field":
             global field_length_pixels
             global field_width_pixels
@@ -119,9 +141,9 @@ def controller_njllrd():
 
             
             home_success = go_home()        # move to home position and set the mode to defense
-            print rospy.get_param('/mode')
-            rospy.set_param('/mode','offense')
-            print rospy.get_param('/mode')
+            
+            rospy.set_param('/mode','wait')
+            
         elif rospy.get_param('/mode') == "defense":
             global x_goal1
             global x_goal2
@@ -293,9 +315,9 @@ def controller_njllrd():
 
                 # strike ball
                
-                # move to home, set to defense
-                #home_success = go_home()
-                
+                #move to home, set to defense
+                home_success = go_home()
+                rospy.set_param('/mode', "defense")
 
                 '''
                 target_point = numpy.array([field_width/2,0,0])
@@ -637,6 +659,38 @@ def line_intersection(line1, line2):
     '''
     
     return intersection
+
+def sweep():
+    r_t = rospy.ServiceProxy('request_translate', translate)
+    for i in range(0,len(block_positions),2):
+        x = block_positions[i]
+        y = block_positions[i+1] 
+        if arm = "right":
+            if y > field_length - .30:
+                # move to y position of origin
+                sweep_start_point = numpy.array([origin[0], origin[1],origin[2]])
+                translate_success = r_t(sweep_start_point[0],sweep_start_point[1],sweep_start_point[2])
+
+                sweep_start_point = numpy.array(x, origin[1] ,origin[2]])
+                translate_success = r_t(sweep_start_point[0],sweep_start_point[1],sweep_start_point[2])
+                
+                #sweep from right to left at x = x
+                sweep_end_point = numpy.array(x,field_length-.30, origin[2]])
+                translate_success = r_t(sweep_end_point[0],sweep_end_point[1],sweep_end_point[2])
+
+        else
+            if y < .30:
+               # move to y position of origin
+                sweep_start_point = numpy.array([origin[0], origin[1],origin[2]])
+                translate_success = r_t(sweep_start_point[0],sweep_start_point[1],sweep_start_point[2])
+
+                sweep_start_point = numpy.array(x, origin[1] ,origin[2]])
+                translate_success = r_t(sweep_start_point[0],sweep_start_point[1],sweep_start_point[2])
+                
+                #sweep from right to left at x = x
+                sweep_end_point = numpy.array(x,.30, origin[2]])
+                translate_success = r_t(sweep_end_point[0],sweep_end_point[1],sweep_end_point[2])
+
 
 def get_bank(target_point):
     global field_width
