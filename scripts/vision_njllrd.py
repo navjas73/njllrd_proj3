@@ -28,7 +28,7 @@ class image_blur:
     self.pub = rospy.Publisher('ball_position',ball, queue_size=10)
     self.pub_block = rospy.Publisher('block_position',block, queue_size=10)
     # create a window to display results in
-    cv2.namedWindow("image_view", 1)
+    #cv2.namedWindow("image_view", 1)
 
     # subscribe to proper topic
     self.image_sub = rospy.Subscriber("camera/rgb/image_color", Image, self.callback)
@@ -47,7 +47,7 @@ class image_blur:
     # we could do anything we want with the image here
     # for now, we'll blur using a median blur
 
-    cv2.imshow("rgb", cv_image)
+    #cv2.imshow("rgb", cv_image)
     if calibrated == 0:
         self.track_blocks(cv_image)
         if block_array is not None:
@@ -64,8 +64,8 @@ class image_blur:
 
     #rospy.set_param('/image_height', height)
     #rospy.set_param('/image_width', width)
-        cv2.imshow("warped",warp)
-        cv2.waitKey(3)      
+        #cv2.imshow("warped",warp)
+        #cv2.waitKey(3)      
         self.track_ball(warp)
         self.track_blocks(warp)
 
@@ -81,7 +81,7 @@ class image_blur:
     if screenCnt is not None:
         #pts = screenCnt.reshape(4, 2)
         pts = screenCnt
-        print pts
+        #print pts
         rect = np.zeros((4, 2), dtype = "float32")
 
         # the top-left point has the smallest sum whereas the
@@ -156,9 +156,9 @@ class image_blur:
             maxWidth_global = maxWidth
             maxHeight_global = maxHeight
             calibrated = 1
-            print calibrated
+            #print calibrated
 
-    cv2.imshow("warped",warp)
+    #cv2.imshow("warped",warp)
 
     #height, width, channels = warp.shape
 
@@ -167,15 +167,15 @@ class image_blur:
     #show the image
     #cv2.imshow("image_view", imgHSV)
     #cv2.imshow("image_view2", cv_image)
-    cv2.waitKey(3)
+    #cv2.waitKey(3)
 
   def track_ball(self,cv_image):
     # Image is a np array (not a ros msg)
     imgHSV = cv2.cvtColor(cv_image,cv2.COLOR_BGR2HSV)
-    cv2.imshow("image_view", imgHSV)
+    #cv2.imshow("image_view", imgHSV)
 
     imgHSV = cv2.medianBlur(imgHSV,3)
-    cv2.imshow("image_view_blur1", imgHSV)
+    #cv2.imshow("image_view_blur1", imgHSV)
 
     #hsv_min = np.array([150,100,70])
     #hsv_max = np.array([255,255,255])
@@ -183,10 +183,10 @@ class image_blur:
     hsv_max = np.array([245,255,255])
 
     img_thr = cv2.inRange(imgHSV,hsv_min,hsv_max)
-    cv2.imshow("image_thr", img_thr)
+    #cv2.imshow("image_thr", img_thr)
 
     img_thr = cv2.medianBlur(img_thr,5)
-    cv2.imshow("image_thr_blur", img_thr)
+    #cv2.imshow("image_thr_blur", img_thr)
 
     # Setup SimpleBlobDetector parameters.
     params = cv2.SimpleBlobDetector_Params()
@@ -228,21 +228,21 @@ class image_blur:
             self.pub.publish(x = x, y = y, t = t)
 
         im_with_keypoints = cv2.drawKeypoints(img_thr, keypoints, np.array([]), (0,0,255), cv2.DRAW_MATCHES_FLAGS_DRAW_RICH_KEYPOINTS)
-        cv2.imshow("Keypoints", im_with_keypoints)
+        #cv2.imshow("Keypoints", im_with_keypoints)
         #print "keypoints"
         #print len(keypoints)
-    cv2.waitKey(3)
+    #cv2.waitKey(3)
 
   def track_blocks(self,cv_image):
     global block_array
     imgHSV = cv2.cvtColor(cv_image,cv2.COLOR_BGR2HSV)
 
     if calibrated == 0: # only look at half of the image
-        if rospy.get_param('/arm') == 'left':
+        if rospy.get_param('/arm_njllrd') == 'left':
             imgHSV = imgHSV[0:-1,0:np.size(imgHSV,1)/2 + 50]
         else:
             imgHSV = imgHSV[0:-1,np.size(imgHSV,1)/2-50:-1]
-        cv2.imshow('cropped',imgHSV)
+        #cv2.imshow('cropped',imgHSV)
     # White mask
     hsv_min2 = np.array([100,100,150])
     hsv_max2 = np.array([255,255,255])
@@ -307,7 +307,7 @@ class image_blur:
 
     if keypoints:
         im_with_keypoints = cv2.drawKeypoints(img_thr, keypoints, np.array([]), (0,0,255), cv2.DRAW_MATCHES_FLAGS_DRAW_RICH_KEYPOINTS)
-        cv2.imshow("Keypoints blocks", im_with_keypoints)
+        #cv2.imshow("Keypoints blocks", im_with_keypoints)
 
         block_array = np.array([])
         for block_pos in keypoints:
@@ -316,7 +316,7 @@ class image_blur:
 
         if block_array.any:
             self.pub_block.publish(block = block_array)
-    cv2.waitKey(3)
+    #cv2.waitKey(3)
 
 if __name__ == '__main__':
     image_blur()

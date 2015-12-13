@@ -65,15 +65,24 @@ def move_to_point(initial_point,point):
     #print x_goal 
     at_goal = False
     #vel_mag = 0.02
-    vel_mag = .1
-    kp = .3
-    ki = 0.01
-    kd = 0.01
+    mode = rospy.get_param('/mode')
+    if mode == 'sweep':
+        vel_mag = 0.1
+    else:
+        if rospy.get_param("/striking") == "True":
+            vel_mag = 1.5
+        else:
+            vel_mag = .25
+
+    
+    kp = 0
+    ki = 0.0
+    kd = 0.0
     deltaT = 0
     x0last = x_init;
     sleep_time = .005
     delta_q = .02
-    integral_thresh = 0.1
+    integral_thresh = numpy.array([0.1, 0.1, 0.1])
     
     global initial_orientation
     #uncomment when you don't want to recalculate position every time
@@ -113,7 +122,7 @@ def move_to_point(initial_point,point):
         proportional_error = error*kp
 
         integral += error
-        if abs(integral) > integral_thresh:
+        if abs(integral[0]) > integral_thresh[0]:
             integral = 0 
         integral_error = ki*integral
         derivative_error = kd*(error-derivative)
@@ -131,7 +140,7 @@ def move_to_point(initial_point,point):
 
         if distTraveled >= numpy.linalg.norm(x_goal - x_init):
             at_goal = True
-            print "within tolerance"
+            #print "within tolerance"
             limb.exit_control_mode()
             break
         else:
@@ -429,7 +438,7 @@ def reach_goal(start, goal):
         q_dot = (goal-q_current)/dist*0.1; 
         if distTraveled >= totDist:
             at_goal = True
-            print "within tolerance"
+            #print "within tolerance"
             limb.exit_control_mode()
             break
         else:
@@ -448,19 +457,19 @@ def handle_translate(data):
     current_point = numpy.array([current_position.x, current_position.y, current_position.z])
     target_point = numpy.array([x, y, z])
     success = move_to_point(current_point, target_point)
-    print success
+    #print success
     return True
 
 def handle_rotate(data):
     global theta0
     theta = data.theta
-    print 'theta0'
-    print theta0
+    #print 'theta0'
+    #print theta0
     new_theta = theta+theta0
-    #joint_command = dict(zip(rospy.get_param('/arm') + '_w2',new_theta))
-    joint_command = {rospy.get_param('/arm') + '_w2': new_theta}
-    print "joint_command"
-    print joint_command 
+    #joint_command = dict(zip(rospy.get_param('/arm_njllrd') + '_w2',new_theta))
+    joint_command = {rospy.get_param('/arm_njllrd') + '_w2': new_theta}
+    #print "joint_command"
+    #print joint_command 
     limb.move_to_joint_positions(joint_command)
 
     return True
@@ -475,8 +484,9 @@ def handle_request_home(data):
 def handle_request_home_calibrate(data):
     global home_position
     global theta0
+    print rospy.get_param('/arm_njllrd')
     home_position = limb.joint_angles()
-    theta0 = limb.joint_angle(rospy.get_param('/arm') + '_w2')
+    theta0 = limb.joint_angle(rospy.get_param('/arm_njllrd') + '_w2')
     print "Home angles stored"
     print home_position
     pose = limb.endpoint_pose()['position']
@@ -509,7 +519,7 @@ def robot_interface_njllrd():
     global tol
     tol         = 0.01
     
-    arm = rospy.get_param("/arm")
+    arm = rospy.get_param("/arm_njllrd")
     # Left limb
     if arm == "left":
         joint_names = ['left_s0', 'left_s1', 'left_e0', 'left_e1', 'left_w0', 'left_w1', 'left_w2']

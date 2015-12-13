@@ -8,6 +8,15 @@ from njllrd_proj3.srv import *
 from njllrd_proj3.msg import *
 from std_msgs.msg import String
 from sensor_msgs.msg import Image
+from game_server.msg import *
+from game_server.srv import *
+import baxter_interface
+from geometry_msgs.msg import (
+    PoseStamped,
+    Pose,
+    Point,
+    Quaternion,
+)
 import cv2
 import cv2.cv as cv
 from cv_bridge import CvBridge, CvBridgeError
@@ -29,24 +38,37 @@ field_width_pixels = None
 field_length_pixels = None
 block_positions = None
 home_position = None
+lastmode = 0
+angles1 = None
+angles2 = None
 
 def controller_njllrd():
     global arm
-
+    global angles1
+    global angles2
     rospy.init_node('controller_njllrd')
 
-    '''
-    rospy.wait_for_service('/game_server/Init')
-    gamesvc = rospy.serviceProxy('/game_server/init', "game_server/Init")
+    
+    '''rospy.wait_for_service('/game_server/init')
+    gamesvc = rospy.ServiceProxy('/game_server/init', Init)
     path = rospy.get_param("/path")
     image = cv2.imread(path)
-    imagemsg = cv_bridge.CvBridge().cv2_to_imgmsg(image, encoding="bgr8")
-    receivedarm = gamesvc("baxterstreetboys", imagemsg)
+    imagemsg = CvBridge().cv2_to_imgmsg(image, encoding="bgr8")
+    receiveddata = gamesvc("baxstreetboys", imagemsg)
+    receivedarm = receiveddata.arm
+    rospy.set_param("/arm_njllrd", receivedarm)'''
 
-    rospy.set_param("/arm", receivedarm)
-    '''
+
+    #DELETE THIS
+    rospy.set_param('/arm_njllrd', "left")
+
+
+
+
     rospy.wait_for_service('request_endpoint')
     rospy.wait_for_service('request_orientation')
+
+    #rospy.Subscriber('/game_server/game_state', GameState, handle_game_state)
     rospy.Subscriber('user_input', String, handle_user_input)
     # subscribe to ball position topic
     rospy.Subscriber("ball_position", ball, get_ball_velocity)
@@ -56,20 +78,24 @@ def controller_njllrd():
 
 
     # Determine which arm we are controlling
-    if rospy.get_param('/arm') == "left":
+    if rospy.get_param('/arm_njllrd') == "left":
         arm = "left"
     else:
         arm = "right"
 
     print arm
-    home_time = rospy.time()
+    home_time = rospy.get_time()
 
+    limb = baxter_interface.Limb(arm)
 
     ##### Testing loop for vision stuff #######
     #while True:
     #    i = True 
     ###########################################
     while True:
+        #print rospy.get_param('/mode')
+        #print rospy.get_param('/arm')
+        #print "f"
         if rospy.get_param('/mode') == "connect_points":
             point1, point2 = get_connect_points()
             
@@ -96,41 +122,56 @@ def controller_njllrd():
             print points.points
             request = rospy.ServiceProxy('connect_waypoints', connect_waypoints)
             output = request(points)
-        elif rospy.get_param('/mode') == "sweeper":
+        elif rospy.get_param('/mode') == "sweep":
+            r_t = rospy.ServiceProxy('request_translate', translate)
+            current_pos = request_position(yes)
+            translate_success = r_t(current_pos.x + .10,current_pos.y,current_pos.z)
+            home_success = go_home()
+            temp_block_positions = block_positions
             needs_sweep = True
-            while needs_sweep:
+            while needs_sweep and rospy.get_param('/mode') == "sweep":
                 needs_sweep = False
-                for i in range(0,len(block_positions),2):
-                    x = block_positions[i]
-                    y = block_positions[i+1] 
+                for i in range(0,len(temp_block_positions),2):
+                    print "i"
+                    print i
+                    print temp_block_positions
+                    x = temp_block_positions[i]
+                    y = temp_block_positions[i+1] 
                     if arm == "right":
-                        if y > field_length - .30:
+                        if y > field_length - .25:
                             needs_sweep = True
                     else:
-                        if y < .30:
+                        if y < .25:
                             needs_sweep = True
                 if needs_sweep:
-                    sweep(origin)
+                    sweep(origin, temp_block_positions)
             rospy.set_param('/mode','wait')
 
                         
                        
         
         elif rospy.get_param('/mode') == "wait":
-            print "waiting"
+            a = True
+            #print "waiting"
         elif rospy.get_param('/mode') == "field":
             global field_length_pixels
             global field_width_pixels
-            field_length_pixels = rospy.get_param("/image_width")
-            field_width_pixels = rospy.get_param("/image_height")
+            field_length_pixels = rospy.get_param('/image_width')
+            field_width_pixels = rospy.get_param('/image_height')
             print "here"
-            print rospy.get_param("/image_height")
+            print rospy.get_param(                elif (abs(vx) > .05) and (abs(vy) > 0.05):
+"/image_height")
 
+            print rospy.get_param("/arm_njllrd")
             # Calibrate the home position
             home_cal_succ = calibrate_home()
 
             # initialize the field, create plane, rotations, etc.
             origin = initialize_field()
+
+            # get strike positions
+            #angles1 = get_angles()
+            #angles2 = get_angles()
 
             print "origin"
             print origin
@@ -145,18 +186,19 @@ def controller_njllrd():
 
             
             home_success = go_home()        # move to home position and set the mode to defense
-            
-            rospy.set_param('/mode','wait')
+            rospy.set_param('/mode','defense')
+            #rospy.set_param('/mode','wait')
+            #rospy.set_param('/mode','wait')
             
         elif rospy.get_param('/mode') == "defense":
             global x_goal1
             global x_goal2
             global field_divisions
-            stall_time = rospy.time()-home_time
+            stall_time = rospy.get_time()-home_time
             # EVERY SO OFTEN, GO HOME TO FIX ORIENTATION
-            if stall_time > 5:
+            if stall_time > 20:
                 home_success = go_home()
-                home_time = rospy.time()
+                home_time = rospy.get_time()
 
             # try to find the ball
             # check ball side/position
@@ -174,12 +216,13 @@ def controller_njllrd():
                 if ball_side == 1:
                     #print "ball on our side"
                     # check velocity
-                    print vx
-                    print vy
-                    if abs(vx) < 0.01  and abs(vy) < 0.01:
+                    #print vx
+                    #print vy
+                    if abs(vx) < 0.03  and abs(vy) < 0.03:
                         # ball is still on our side
                         # switch to offense
                         #print "ball still"
+                        rospy.sleep(1)
                         rospy.set_param('/mode','offense')
                         print rospy.get_param('/mode')
                         #elif (vx != 0) and (vy != 0): # ball is on our side still moving 
@@ -187,8 +230,9 @@ def controller_njllrd():
                         #print "ball moving on our side"
                         # compute ball trajectory
                         x_impact = get_ball_trajectory()
-                        print "ximpact"
-                        print x_impact
+                        #x_impact = ball_pos[0]
+                        #print "ximpact"
+                        #print x_impact
                         # if necessary, compute point to move to to block ball
                         if x_impact > x_goal1 and x_impact < x_goal2:
                             # move arm to block accordingly
@@ -200,8 +244,9 @@ def controller_njllrd():
                             translate_success = r_t(new_point[0], new_point[1], new_point[2])
                 elif (abs(vx) > .05) and (abs(vy) > 0.05):
                     x_impact = get_ball_trajectory()
-                    print "ximpact"
-                    print x_impact
+                    #x_impact = ball_pos[0]
+                    #print "ximpact"
+                    #print x_impact
                     # if necessary, compute point to move to to block ball
                     if x_impact > x_goal1 and x_impact < x_goal2:
                         # move arm to block accordingly
@@ -213,8 +258,6 @@ def controller_njllrd():
                         translate_success = r_t(new_point[0], new_point[1], new_point[2])
                    
             
-
-
         elif rospy.get_param('/mode') == 'offense':
             # get current ball pos
             # updated automatically in topic callback, stored as ball_pos [x,y,t]
@@ -240,6 +283,7 @@ def controller_njllrd():
                 # to start, assume ball is at circle.
                 # check straight shot, and two bank shots aiming for sides of goal
                 # check to make sure no blocks in path of the ball's trajectory
+                home_success = go_home()
                 if arm == 'right':
                     target_point = numpy.array([field_width/2,0])
                 else:
@@ -269,60 +313,88 @@ def controller_njllrd():
 
                 # move to starting point
                 # home_success = go_home()
-                
+                rospy.set_param("/striking", "True")
                 if intersection == 0:
                     # shoot straight
                     if arm == 'right':
-                        strike_end_point = numpy.array([ball_pos[0],ball_pos[1]-.02, origin[2]])
+                        strike_end_point = numpy.array([origin[0]+ball_pos[0],origin[1]-(ball_pos[1]-.02), origin[2]])
                         translate_success = r_t(strike_end_point[0],strike_end_point[1],strike_end_point[2])
+                        #limb.set_joint_position_speed(.2)
+                        #limb.set_joint_positions(angles1)
+                        #limb.set_joint_position_speed(1)
+                        #limb.set_point_positions(angles2)
+
                     else:
-                        strike_end_point = numpy.array([ball_pos[0],ball_pos[1]+.02, origin[2]])
-
-                elif intersection1 == 0 and intersection2 == 0:
-                    # shoot up
-
-                    if arm == 'right':
-                        strike_start_point = numpy.array([home_position[0]-math.tan(theta)*(home_position[1]-ball_pos[1]), home_position[1], origin[2]])
-                        translate_success = r_t(strike_start_point[0],strike_start_point[1],strike_start_point[2])
-
-                        strike_end_point = numpy.array([ball_pos[0]+.02*math.sin(theta),ball_pos[1]-.02*math.cos(theta), origin[2]])
+                        strike_end_point = numpy.array([origin[0] + ball_pos[0],origin[1]-(ball_pos[1]+.02), origin[2]])
+                        rotate_success = r_r(math.pi/8)
                         translate_success = r_t(strike_end_point[0],strike_end_point[1],strike_end_point[2])
-                    else:
-                        strike_start_point = numpy.array([home_position[0]-math.tan(theta)*(home_position[1]-ball_pos[1]), home_position[1], origin[2]])
-                        translate_success = r_t(strike_start_point[0],strike_start_point[1],strike_start_point[2])
+                        #limb.set_joint_position_speed(.2)
+                        #limb.set_joint_positions(angles1)
+                        #limb.set_joint_position_speed(1)
+                        #limb.set_point_positions(angles2)
+                    '''
+                    elif intersection1 == 0 and intersection2 == 0:
+                        # shoot up
+     
+                        if arm == 'right':
+                            strike_start_point = numpy.array([home_position[0]-math.tan(theta)*(ball_pos[1]-home_position[1]), home_position[1], origin[2]])
+                            translate_success = r_t(strike_start_point[0],strike_start_point[1],strike_start_point[2])
 
-                        strike_end_point = numpy.array([ball_pos[0]+.02*math.sin(theta),ball_pos[1]-.02*math.cos(theta), origin[2]])
-                        translate_success = r_t(strike_end_point[0],strike_end_point[1],strike_end_point[2])
-
-                elif intersection3 == 0 and intersection4 == 0:
-                    # shoot down
-
-                    if arm == 'right':
-                        strike_start_point = numpy.array([home_position[0]+math.tan(theta)*(home_position[1]-ball_pos[1]), home_position[1], origin[2]])
-                        translate_success = r_t(strike_start_point[0],strike_start_point[1],strike_start_point[2])
-
-                        strike_end_point = numpy.array([ball_pos[0]-.02*math.sin(theta),ball_pos[1]+.02*math.cos(theta), origin[2]])
-                        translate_success = r_t(strike_end_point[0],strike_end_point[1],strike_end_point[2])
-                    else:
-                        strike_start_point = numpy.array([home_position[0]+math.tan(theta)*(home_position[1]-ball_pos[1]), home_position[1], origin[2]])
-                        translate_success = r_t(strike_start_point[0],strike_start_point[1],strike_start_point[2])
-
-                        strike_end_point = numpy.array([ball_pos[0]-.02*math.sin(theta),ball_pos[1]+.02*math.cos(theta), origin[2]])
-                        translate_success = r_t(strike_end_point[0],strike_end_point[1],strike_end_point[2])
+                            rotate_success = r_r(theta)
 
 
+                            strike_end_point = numpy.array([origin[0]+ball_pos[0]+.02*math.sin(theta),origin[1]+ball_pos[1]-.02*math.cos(theta), origin[2]])
+                            translate_success = r_t(strike_end_point[0],strike_end_point[1],strike_end_point[2])
+                        else:
+                            strike_start_point = numpy.array([home_position[0]-math.tan(theta)*(ball_pos[1]-home_position[1]), home_position[1], origin[2]])
+                            translate_success = r_t(strike_start_point[0],strike_start_point[1],strike_start_point[2])
+
+                            rotate_success = r_r(-theta)
+
+                            strike_end_point = numpy.array([origin[0]+ball_pos[0]+.02*math.sin(theta),origin[1]+ball_pos[1]-.02*math.cos(theta), origin[2]])
+                            translate_success = r_t(strike_end_point[0],strike_end_point[1],strike_end_point[2])
+
+                    elif intersection3 == 0 and intersection4 == 0:
+                        # shoot down
+
+                        if arm == 'right':
+                            strike_start_point = numpy.array([home_position[0]+math.tan(theta)*(ball_pos[1]-home_position[1]), home_position[1], origin[2]])
+                            translate_success = r_t(strike_start_point[0],strike_start_point[1],strike_start_point[2])
+
+                            rotate_success = r_r(-theta)
+
+                            strike_end_point = numpy.array([origin[0]+ball_pos[0]-.02*math.sin(theta),origin[1]+ball_pos[1]+.02*math.cos(theta), origin[2]])
+                            translate_success = r_t(strike_end_point[0],strike_end_point[1],strike_end_point[2])
+                        else:
+                            strike_start_point = numpy.array([home_position[0]+math.tan(theta)*(ball_pos[1]-home_position[1]), home_position[1], origin[2]])
+                            translate_success = r_t(strike_start_point[0],strike_start_point[1],strike_start_point[2])
+
+                            rotate_success = r_r(theta)
+
+                            strike_end_point = numpy.array([origin[0]+ball_pos[0]-.02*math.sin(theta),origin[1]+ball_pos[1]+.02*math.cos(theta), origin[2]])
+                            translate_success = r_t(strike_end_point[0],strike_end_point[1],strike_end_point[2])
+
+                    '''
                 else:
                     # blast through the middle
-
                     if arm == 'right':
-                        strike_end_point = numpy.array([ball_pos[0],ball_pos[1]-.02, origin[2]])
+                        strike_end_point = numpy.array([origin[0]+ball_pos[0],origin[1]-(ball_pos[1]-.02), origin[2]])
                         translate_success = r_t(strike_end_point[0],strike_end_point[1],strike_end_point[2])
+                        #limb.set_joint_position_speed(.2)
+                        #limb.set_joint_positions(angles1)
+                        #limb.set_joint_position_speed(1)
+                        #limb.set_point_positions(angles2)
                     else:
-                        strike_end_point = numpy.array([ball_pos[0],ball_pos[1]+.02, origin[2]])
+                        strike_end_point = numpy.array([origin[0]+ball_pos[0],origin[1]-(ball_pos[1]+.02), origin[2]])
+                        rotate_success = r_r(math.pi/8)
+                        translate_success = r_t(strike_end_point[0],strike_end_point[1],strike_end_point[2])
+                        #limb.set_joint_position_speed(.2)
+                        #limb.set_joint_positions(angles1)
+                        #limb.set_joint_position_speed(1)
+                        #limb.set_point_positions(angles2)
 
-
-                # strike ball
-               
+                # end strike ball
+                rospy.set_param("/striking", "False")
                 #move to home, set to defense
                 home_success = go_home()
                 rospy.set_param('/mode', "defense")
@@ -338,8 +410,9 @@ def controller_njllrd():
                 print theta
                 rotate_success = r_r(theta)
                 '''
-
-
+            else:
+                home_success = go_home()
+                rospy.set_param('/mode', "defense")
 
 
         # time.sleep(10)
@@ -538,6 +611,7 @@ def calibrate_home():
         x = 1
         #loop
     # h_cal_success, home_position = r_h_cal(True)
+    print rospy.get_param('/arm_njllrd')
     data = r_h_cal(True)
     h_cal_success = data.success
     home_position = data.home_position
@@ -604,13 +678,14 @@ def get_ball_trajectory():
 def check_for_blocks(target_point,start_point):
     global block_positions
     intersection = 0
-    if block_positions.any:
+    temp_block_positions = block_positions
+    if temp_block_positions.any:
         point1 = [start_point[0], start_point[1]]
         point2 = [target_point[0],target_point[1]]
         line1 = [point1,point2]
-        for i in range(0,len(block_positions),2):
-            block_x = block_positions[i]
-            block_y = block_positions[i+1]
+        for i in range(0,len(temp_block_positions),2):
+            block_x = temp_block_positions[i]
+            block_y = temp_block_positions[i+1]
             point1b = [block_x+0.045, block_y]
             point2b = [block_x-0.045, block_y]
             line2 = [point1b,point2b]
@@ -683,16 +758,17 @@ def line_intersection(line1, line2):
     
     return intersection
 
-def sweep(origin):
+def sweep(origin, temp_block_positions):
     r_t = rospy.ServiceProxy('request_translate', translate)
-    if block_positions.any:
-        for i in range(0,len(block_positions),2):
-            x = block_positions[i]
-            y = block_positions[i+1] 
+    
+    if temp_block_positions.any:
+        for i in range(0,len(temp_block_positions),2):
+            x = temp_block_positions[i]
+            y = temp_block_positions[i+1] 
             print "origin_sweep"
             print origin
             if arm == "right":
-                if y > field_length - .30:
+                if y > field_length - .25:
                     # move to y position of origin
                     #sweep_start_point = numpy.array([origin[0], origin[1],origin[2]])
                     #translate_success = r_t(sweep_start_point[0],sweep_start_point[1],sweep_start_point[2])
@@ -705,7 +781,7 @@ def sweep(origin):
                     translate_success = r_t(sweep_end_point[0],sweep_end_point[1],sweep_end_point[2])
 
             else:
-                if y < .30:
+                if y < .25:
                     print "blockx"
                     print x
                     print "blocky"
@@ -720,6 +796,24 @@ def sweep(origin):
                     #sweep from right to left at x = x
                     sweep_end_point = numpy.array([x+origin[0],-.30+origin[1], origin[2]])
                     translate_success = r_t(sweep_end_point[0],sweep_end_point[1],sweep_end_point[2])
+
+def handle_game_state(data):
+    global lastmode
+    mode = data.current_phase
+    print "mode"
+    print mode
+
+    if abs(mode-lastmode) > 0:
+        if mode == 3:
+            rospy.set_param('/mode', "defense")
+            lastmode = 3
+        elif mode == 2:
+            rospy.set_param('/mode', "sweep")
+            lastmode = 2
+        elif mode == 1:
+            rospy.set_param('/mode', "field")
+            lastmode = 1
+
 
 
 def get_bank(target_point):
@@ -750,6 +844,20 @@ def get_bank(target_point):
             new_target_point = numpy.array([e,0,0])
 
     return (theta,new_target_point)
+
+def get_angles():
+    limb = baxter_interface.Limb(rospy.get_param('arm_njllrd'))
+   
+    global flag
+    flag = False
+
+    #wait for user to hit enter
+    while flag == False:
+        x = 1
+
+    angles = limb.joint_angle(rospy.get_param('/arm_njllrd') + '_w0')
+
+    return angles
 
 if __name__ == "__main__":
     controller_njllrd()
