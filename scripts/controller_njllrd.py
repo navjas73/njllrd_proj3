@@ -159,8 +159,7 @@ def controller_njllrd():
             field_length_pixels = rospy.get_param('/image_width')
             field_width_pixels = rospy.get_param('/image_height')
             print "here"
-            print rospy.get_param(                elif (abs(vx) > .05) and (abs(vy) > 0.05):
-"/image_height")
+            print rospy.get_param("/image_height")
 
             print rospy.get_param("/arm_njllrd")
             # Calibrate the home position
@@ -277,7 +276,9 @@ def controller_njllrd():
                 else:
                     ball_placed = False
 
-
+            temp_ball_pos = ball_pos
+            print "Ballpos"
+            print temp_ball_pos
             if ball_placed:
                 # compute desired trajectory
                 # to start, assume ball is at circle.
@@ -332,49 +333,76 @@ def controller_njllrd():
                         #limb.set_joint_positions(angles1)
                         #limb.set_joint_position_speed(1)
                         #limb.set_point_positions(angles2)
-                    '''
-                    elif intersection1 == 0 and intersection2 == 0:
-                        # shoot up
-     
-                        if arm == 'right':
-                            strike_start_point = numpy.array([home_position[0]-math.tan(theta)*(ball_pos[1]-home_position[1]), home_position[1], origin[2]])
-                            translate_success = r_t(strike_start_point[0],strike_start_point[1],strike_start_point[2])
+                    
+                elif intersection1 == 0 and intersection2 == 0:
+                    # shoot up
+ 
+                    if arm == 'right':
+                        #strike_start_point = 
+                        print "strike_start_point"
+                        print strike_start_point
+                        print theta
+                        #translate_success = 
 
-                            rotate_success = r_r(theta)
+                        rotate_success = r_r(theta)
 
 
-                            strike_end_point = numpy.array([origin[0]+ball_pos[0]+.02*math.sin(theta),origin[1]+ball_pos[1]-.02*math.cos(theta), origin[2]])
-                            translate_success = r_t(strike_end_point[0],strike_end_point[1],strike_end_point[2])
-                        else:
-                            strike_start_point = numpy.array([home_position[0]-math.tan(theta)*(ball_pos[1]-home_position[1]), home_position[1], origin[2]])
-                            translate_success = r_t(strike_start_point[0],strike_start_point[1],strike_start_point[2])
+                        #strike_end_point = 
+                        print "strike_end_point"
+                        print strike_end_point
+                        #translate_success = 
+                    else:
+                        rospy.set_param("/striking", "False")
+                        strike_start_point = numpy.array([temp_ball_pos[0]-.1*math.sin(theta), temp_ball_pos[1]-.1*math.cos(theta), 0])
+                        print "strike_start_point"
+                        print strike_start_point
+                        print numpy.array([strike_start_point[0]+origin[0],origin[1]-strike_start_point[1], strike_start_point[2]+origin[2]])
+                        print "origin"
+                        print origin
+                        #translate_success = r_t(strike_start_point[0]+origin[0],origin[1]-strike_start_point[1], strike_start_point[2]+origin[2])
 
-                            rotate_success = r_r(-theta)
 
-                            strike_end_point = numpy.array([origin[0]+ball_pos[0]+.02*math.sin(theta),origin[1]+ball_pos[1]-.02*math.cos(theta), origin[2]])
-                            translate_success = r_t(strike_end_point[0],strike_end_point[1],strike_end_point[2])
+                        rospy.sleep(2)
 
-                    elif intersection3 == 0 and intersection4 == 0:
-                        # shoot down
+                        rotate_success = r_r(-theta)
 
-                        if arm == 'right':
-                            strike_start_point = numpy.array([home_position[0]+math.tan(theta)*(ball_pos[1]-home_position[1]), home_position[1], origin[2]])
-                            translate_success = r_t(strike_start_point[0],strike_start_point[1],strike_start_point[2])
+                        rospy.sleep(2)
 
-                            rotate_success = r_r(-theta)
+                        rospy.set_param("/striking", "banked")
+                        strike_end_point = numpy.array([temp_ball_pos[0]+.02*math.sin(theta), temp_ball_pos[1]+.02*math.cos(theta), 0])
+                        print "strike_end_point"
+                        print strike_end_point
+                        print numpy.array([strike_end_point[0]+origin[0],origin[1]-strike_end_point[1], strike_end_point[2]+origin[2]])
+                        #translate_success = r_t(strike_end_point[0]+origin[0],-strike_end_point[1]+origin[1], strike_end_point[2]+origin[2])
+                        print "origin"
+                        print origin
+                        rospy.set_param("/striking", "False")
 
-                            strike_end_point = numpy.array([origin[0]+ball_pos[0]-.02*math.sin(theta),origin[1]+ball_pos[1]+.02*math.cos(theta), origin[2]])
-                            translate_success = r_t(strike_end_point[0],strike_end_point[1],strike_end_point[2])
-                        else:
-                            strike_start_point = numpy.array([home_position[0]+math.tan(theta)*(ball_pos[1]-home_position[1]), home_position[1], origin[2]])
-                            translate_success = r_t(strike_start_point[0],strike_start_point[1],strike_start_point[2])
+                elif intersection3 == 0 and intersection4 == 0:
+                    # shoot down
 
-                            rotate_success = r_r(theta)
+                    if arm == 'right':
+                        #strike_start_point = 
+                        #translate_success = 
 
-                            strike_end_point = numpy.array([origin[0]+ball_pos[0]-.02*math.sin(theta),origin[1]+ball_pos[1]+.02*math.cos(theta), origin[2]])
-                            translate_success = r_t(strike_end_point[0],strike_end_point[1],strike_end_point[2])
+                        rotate_success = r_r(theta)
 
-                    '''
+                        #strike_end_point = 
+                        #translate_success = 
+                    else:
+                        #strike_start_point = 
+                        #translate_success = 
+                        print "strike_start_point"
+                        print strike_start_point
+                        print theta
+
+                        rotate_success = r_r(-theta)
+
+                        #strike_end_point = 
+                        #translate_success = 
+                        print "strike_end_point"
+                        print strike_end_point
+                    
                 else:
                     # blast through the middle
                     if arm == 'right':
@@ -397,6 +425,7 @@ def controller_njllrd():
                 rospy.set_param("/striking", "False")
                 #move to home, set to defense
                 home_success = go_home()
+                print("HERE")
                 rospy.set_param('/mode', "defense")
 
                 '''

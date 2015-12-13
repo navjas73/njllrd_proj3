@@ -28,7 +28,7 @@ class image_blur:
     self.pub = rospy.Publisher('ball_position',ball, queue_size=10)
     self.pub_block = rospy.Publisher('block_position',block, queue_size=10)
     # create a window to display results in
-    #cv2.namedWindow("image_view", 1)
+    cv2.namedWindow("image_view", 1)
 
     # subscribe to proper topic
     self.image_sub = rospy.Subscriber("camera/rgb/image_color", Image, self.callback)
@@ -64,8 +64,8 @@ class image_blur:
 
     #rospy.set_param('/image_height', height)
     #rospy.set_param('/image_width', width)
-        #cv2.imshow("warped",warp)
-        #cv2.waitKey(3)      
+        cv2.imshow("warped",warp)
+        cv2.waitKey(3)      
         self.track_ball(warp)
         self.track_blocks(warp)
 
@@ -307,7 +307,7 @@ class image_blur:
 
     if keypoints:
         im_with_keypoints = cv2.drawKeypoints(img_thr, keypoints, np.array([]), (0,0,255), cv2.DRAW_MATCHES_FLAGS_DRAW_RICH_KEYPOINTS)
-        #cv2.imshow("Keypoints blocks", im_with_keypoints)
+        cv2.imshow("Keypoints blocks", im_with_keypoints)
 
         block_array = np.array([])
         for block_pos in keypoints:
@@ -316,7 +316,7 @@ class image_blur:
 
         if block_array.any:
             self.pub_block.publish(block = block_array)
-    #cv2.waitKey(3)
+    cv2.waitKey(3)
 
 if __name__ == '__main__':
     image_blur()

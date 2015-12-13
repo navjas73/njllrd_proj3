@@ -71,8 +71,10 @@ def move_to_point(initial_point,point):
     else:
         if rospy.get_param("/striking") == "True":
             vel_mag = 1.5
+        elif rospy.get_param("/striking") == "banked":
+            vel_mag = .3
         else:
-            vel_mag = .25
+            vel_mag = .3
 
     
     kp = 0
