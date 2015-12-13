@@ -48,7 +48,7 @@ def controller_njllrd():
     global angles2
     rospy.init_node('controller_njllrd')
 
-    
+ ############################################################UNCOMMENT#####################################################################   
     '''rospy.wait_for_service('/game_server/init')
     gamesvc = rospy.ServiceProxy('/game_server/init', Init)
     path = rospy.get_param("/path")
@@ -57,11 +57,12 @@ def controller_njllrd():
     receiveddata = gamesvc("baxstreetboys", imagemsg)
     receivedarm = receiveddata.arm
     rospy.set_param("/arm_njllrd", receivedarm)'''
+############################################################UNCOMMENT#######################################################################
 
 
-    #DELETE THIS
+#################################################################DELETE THIS##############################################################################
     rospy.set_param('/arm_njllrd', "left")
-
+###############################################################DELETE ABOVE LINE###########################################################################
 
 
 
@@ -88,14 +89,9 @@ def controller_njllrd():
 
     limb = baxter_interface.Limb(arm)
 
-    ##### Testing loop for vision stuff #######
-    #while True:
-    #    i = True 
-    ###########################################
+
     while True:
-        #print rospy.get_param('/mode')
-        #print rospy.get_param('/arm')
-        #print "f"
+        
         if rospy.get_param('/mode_njllrd') == "connect_points":
             point1, point2 = get_connect_points()
             
@@ -185,8 +181,10 @@ def controller_njllrd():
 
             
             home_success = go_home()        # move to home position and set the mode to defense
-            rospy.set_param('/mode_njllrd','defense')
-            #rospy.set_param('/mode','wait')
+
+
+            rospy.set_param('/mode_njllrd','defense') #######################################################DELETE THIS
+            #rospy.set_param('/mode','wait')            ####################################################UNCOMMENT THIS
             #rospy.set_param('/mode','wait')
             
         elif rospy.get_param('/mode_njllrd') == "defense":
@@ -319,6 +317,7 @@ def controller_njllrd():
                     # shoot straight
                     if arm == 'right':
                         strike_end_point = numpy.array([origin[0]+ball_pos[0],origin[1]-(ball_pos[1]-.02), origin[2]])
+                        rotate_success = r_r(-math.pi/8)
                         translate_success = r_t(strike_end_point[0],strike_end_point[1],strike_end_point[2])
                         #limb.set_joint_position_speed(.2)
                         #limb.set_joint_positions(angles1)
@@ -390,35 +389,11 @@ def controller_njllrd():
                         print origin
                         rospy.set_param("/striking", "False")
 
-                elif intersection3 == 0 and intersection4 == 0:
-                    # shoot down
-
-                    if arm == 'right':
-                        #strike_start_point = 
-                        #translate_success = 
-
-                        rotate_success = r_r(theta)
-
-                        #strike_end_point = 
-                        #translate_success = 
-                    else:
-                        #strike_start_point = 
-                        #translate_success = 
-                        print "strike_start_point"
-                        print strike_start_point
-                        print theta
-
-                        rotate_success = r_r(-theta)
-
-                        #strike_end_point = 
-                        #translate_success = 
-                        print "strike_end_point"
-                        print strike_end_point
-                    
                 else:
                     # blast through the middle
                     if arm == 'right':
                         strike_end_point = numpy.array([origin[0]+ball_pos[0],origin[1]-(ball_pos[1]-.02), origin[2]])
+                        rotate_success = r_r(-math.pi/8)
                         translate_success = r_t(strike_end_point[0],strike_end_point[1],strike_end_point[2])
                         #limb.set_joint_position_speed(.2)
                         #limb.set_joint_positions(angles1)
@@ -440,17 +415,7 @@ def controller_njllrd():
                 print("HERE")
                 rospy.set_param('/mode_njllrd', "defense")
 
-                '''
-                target_point = numpy.array([field_width/2,0,0])
-                print "target_point"
-                print target_point
-                (theta,target_point) = get_bank(target_point)
-                print "new_target_point"
-                print target_point
-                print "theta"
-                print theta
-                rotate_success = r_r(theta)
-                '''
+                
             else:
                 home_success = go_home()
                 rospy.set_param('/mode_njllrd', "defense")
