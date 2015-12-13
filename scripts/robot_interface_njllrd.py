@@ -67,10 +67,13 @@ def move_to_point(initial_point,point):
     #vel_mag = 0.02
     vel_mag = .1
     kp = .3
+    ki = 0.01
+    kd = 0.01
     deltaT = 0
     x0last = x_init;
     sleep_time = .005
     delta_q = .02
+    integral_thresh = 0.1
     
     global initial_orientation
     #uncomment when you don't want to recalculate position every time
@@ -78,6 +81,8 @@ def move_to_point(initial_point,point):
     
     time_initial = rospy.get_time();
     deltaT  =  0;
+    integral = 0
+    derivative = 0
     while not at_goal:
         '''print"x_init"
         print x_init
@@ -105,7 +110,17 @@ def move_to_point(initial_point,point):
         deltaT = rospy.get_time() - time_initial;
         correct_x = correct_vector*vel_mag*deltaT+x_init
         error = x0 - correct_x
-        error = error*kp
+        proportional_error = error*kp
+
+        integral += error
+        if abs(integral) > integral_thresh:
+            integral = 0 
+        integral_error = ki*integral
+        derivative_error = kd*(error-derivative)
+        derivative = error
+
+        total_error = proportional_error + integral_error + derivative_error
+
         
         #dist = numpy.linalg.norm(numpy.subtract(x_goal,x0))
         dist = numpy.linalg.norm(x_goal-x0)
@@ -123,7 +138,7 @@ def move_to_point(initial_point,point):
             # check if x_goal in reachable workspace
 
             #uncomment for feedback stuff
-            v_des = (((x_goal-x0)/dist*vel_mag - error))
+            v_des = (((x_goal-x0)/dist*vel_mag - total_error))
             #print v_des
 
             #v_des = (x_goal-x0)/dist*vel_mag
