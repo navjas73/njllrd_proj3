@@ -61,7 +61,7 @@ def controller_njllrd():
 
 
 #################################################################DELETE THIS##############################################################################
-    rospy.set_param('/arm_njllrd', "left")
+    rospy.set_param('/arm_njllrd', "right")
 ###############################################################DELETE ABOVE LINE###########################################################################
 
 
@@ -211,14 +211,14 @@ def controller_njllrd():
                 #print ball_side
                 
                 if ball_side == 1:
-                    #print "ball on our side"
                     # check velocity
-                    #print vx
-                    #print vy
+                    print "velocities"
+                    print vx
+                    print vy
                     if abs(vx) < 0.03  and abs(vy) < 0.03:
                         # ball is still on our side
                         # switch to offense
-                        #print "ball still"
+                        # print "ball still"
                         rospy.sleep(1)
                         rospy.set_param('/mode_njllrd','offense')
                         print rospy.get_param('/mode_njllrd')
@@ -237,6 +237,8 @@ def controller_njllrd():
                             
                             #new_point = origin + numpy.dot(R,numpy.array([x_impact,0,0]))
                             new_point = origin + numpy.array([x_impact,-.05,0])
+                            if arm == 'right':
+                                new_point[1] = home_position[1]
                             #print "moving to block ball"
                             translate_success = r_t(new_point[0], new_point[1], new_point[2])
                 elif (abs(vx) > .05) and (abs(vy) > 0.05):
@@ -251,6 +253,8 @@ def controller_njllrd():
                         
                         #new_point = origin + numpy.dot(R,numpy.array([x_impact,0,0]))
                         new_point = origin + numpy.array([x_impact,-.05,0])
+                        if arm == 'right':
+                            new_point[1] = home_position[1]
                         #print "moving to block ball"
                         translate_success = r_t(new_point[0], new_point[1], new_point[2])
                    
@@ -663,19 +667,30 @@ def get_ball_trajectory():
     if arm == "left":
         y_offset = 0
         if vy < 0:
-            m = vy/vx
+            if vx == 0:
+                m = vy/0.001
+            else:
+                m = vy/vx
             b = y-m*x
-
-            x_impact = (y_offset - b)/m
+            if m == 0:
+                x_impact = (y_offset - b)/0.001
+            else:
+                x_impact = (y_offset - b)/m
         else:
             x_impact = None
     else:
-        y_offest = -field_length
+        y_offset = -field_length
         if vy > 0:
-            m = vy/vx
+            if vx == 0:
+                m = vy/0.001
+            else:
+                m = vy/vx
             b = y-m*x
 
-            x_impact = (y_offset - b)/m
+            if m == 0:
+                x_impact = (y_offset - b)/0.001
+            else:
+                x_impact = (y_offset - b)/m
         else: 
             x_impact = None
 
