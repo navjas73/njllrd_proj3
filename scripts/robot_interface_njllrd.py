@@ -464,7 +464,9 @@ def handle_request_home_calibrate(data):
     theta0 = limb.joint_angle(rospy.get_param('/arm') + '_w2')
     print "Home angles stored"
     print home_position
-    return True
+    pose = limb.endpoint_pose()['position']
+    home_pos_xyz = numpy.array([pose.x, pose.y, pose.z])
+    return True, home_pos_xyz
 
 def robot_interface_njllrd():
     rospy.init_node('robot_interface_njllrd')

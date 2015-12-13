@@ -1,4 +1,3 @@
 bool True
 ---
 bool success
-float32[] home_position

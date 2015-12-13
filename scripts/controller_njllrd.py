@@ -7,6 +7,10 @@ import ast
 from njllrd_proj3.srv import *
 from njllrd_proj3.msg import *
 from std_msgs.msg import String
+from sensor_msgs.msg import Image
+import cv2
+import cv2.cv as cv
+from cv_bridge import CvBridge, CvBridgeError
 
 flag = False
 x_last = 0           # last stored x_position of the ball
@@ -24,9 +28,20 @@ field_divisions = None
 field_width_pixels = None
 field_length_pixels = None
 block_positions = None
+home_position = None
 
 def controller_njllrd():
+    global arm
+
     rospy.init_node('controller_njllrd')
+    rospy.wait_for_service('/game_server/Init')
+    gamesvc = rospy.serviceProxy('/game_server/init', "game_server/Init")
+    path = rospy.get_param("/path")
+    image = cv2.imread(path)
+    imagemsg = cv_bridge.CvBridge().cv2_to_imgmsg(image, encoding="bgr8")
+    receivedarm = gamesvc("baxterstreetboys", imagemsg)
+
+    rospy.set_param("/arm", receivedarm)
     rospy.wait_for_service('request_endpoint')
     rospy.wait_for_service('request_orientation')
     rospy.Subscriber('user_input', String, handle_user_input)
@@ -36,8 +51,8 @@ def controller_njllrd():
     # subscribe to block position topic
     rospy.Subscriber("block_position", block, update_block_positions)
 
+
     # Determine which arm we are controlling
-    global arm
     if rospy.get_param('/arm') == "left":
         arm = "left"
     else:
@@ -165,81 +180,134 @@ def controller_njllrd():
                         #print "moving to block ball"
                         translate_success = r_t(new_point[0], new_point[1], new_point[2])
                    
-            
+            # EVERY SO OFTEN, GO HOME TO FIX ORIENTATION
+
+
+
+
         elif rospy.get_param('/mode') == 'offense':
             # get current ball pos
             # updated automatically in topic callback, stored as ball_pos [x,y,t]
-
-            # compute desired trajectory
-            # to start, assume ball is at circle.
-            # check straight shot, and two bank shots aiming for sides of goal
-            # check to make sure no blocks in path of the ball's trajectory
+            ball_placed = True
+            # check whether ball is approximately within region of dot
             if arm == 'right':
-                target_point = numpy.array([field_width/2,0])
+                # ball should be at x = .36, y = field_length-.22
+                if ball_pos[0] > .32 and ball_pos[0] < .40 and ball_pos[1] > field_length-.22-.04 and ball_pos[1] < field_length-.22+.04:
+                    ball_placed = True
+                else:
+                    ball_placed = False
+
             else:
-                target_point = numpy.array([field_width/2,field_length])
+                # ball should be at x = .36, y = .22
+                if ball_pos[0] > .32 and ball_pos[0] < .40 and ball_pos[1] > .18 and ball_pos[1] < .26:
+                    ball_placed = True
+                else:
+                    ball_placed = False
 
-            bank_offset = numpy.array([0.05,0])
-            intersection = check_for_blocks(target_point,ball_pos)
-            print "intersection_straight"
-            print intersection 
 
-            if intersection !=0:
+            if ball_placed:
+                # compute desired trajectory
+                # to start, assume ball is at circle.
+                # check straight shot, and two bank shots aiming for sides of goal
+                # check to make sure no blocks in path of the ball's trajectory
+                if arm == 'right':
+                    target_point = numpy.array([field_width/2,0])
+                else:
+                    target_point = numpy.array([field_width/2,field_length])
 
-                (theta,new_target_point) = get_bank(target_point+bank_offset)
-                intersection1 = check_for_blocks(new_target_point,ball_pos)
-                intersection2 = check_for_blocks(target_point,new_target_point)
-                print "intersection_up"
-                print intersection1
-                print intersection2
+                bank_offset = numpy.array([0.05,0])
+                intersection = check_for_blocks(target_point,ball_pos)
+                print "intersection_straight"
+                print intersection 
 
-                if intersection1 != 0  or intersection2 !=0:
-                    (theta,new_target_point) = get_bank(target_point-bank_offset)
-                    intersection3 = check_for_blocks(new_target_point,ball_pos)
-                    intersection4 = check_for_blocks(target_point,new_target_point)
-                    print "intersection_down"
-                    print intersection3
-                    print intersection4
-            # move to starting point
-            # home_success = go_home()
-            
-            if intersection == 0:
-                # shoot straight
+                if intersection !=0:
+
+                    (theta,new_target_point) = get_bank(target_point+bank_offset)
+                    intersection1 = check_for_blocks(new_target_point,ball_pos)
+                    intersection2 = check_for_blocks(target_point,new_target_point)
+                    print "intersection_up"
+                    print intersection1
+                    print intersection2
+
+                    if intersection1 != 0  or intersection2 !=0:
+                        (theta,new_target_point) = get_bank(target_point-bank_offset)
+                        intersection3 = check_for_blocks(new_target_point,ball_pos)
+                        intersection4 = check_for_blocks(target_point,new_target_point)
+                        print "intersection_down"
+                        print intersection3
+                        print intersection4
+
+                # move to starting point
+                # home_success = go_home()
+                
+                if intersection == 0:
+                    # shoot straight
+                    if arm == 'right':
+                        strike_end_point = numpy.array([ball_pos[0],ball_pos[1]-.02, origin[2]])
+                        translate_success = r_t(strike_end_point[0],strike_end_point[1],strike_end_point[2])
+                    else:
+                        strike_end_point = numpy.array([ball_pos[0],ball_pos[1]+.02, origin[2]])
+
+                elif intersection1 == 0 and intersection2 == 0:
+                    # shoot up
+
+                    if arm == 'right':
+                        strike_start_point = numpy.array([home_position[0]-math.tan(theta)*(home_position[1]-ball_pos[1]), home_position[1], origin[2]])
+                        translate_success = r_t(strike_start_point[0],strike_start_point[1],strike_start_point[2])
+
+                        strike_end_point = numpy.array([ball_pos[0]+.02*math.sin(theta),ball_pos[1]-.02*math.cos(theta), origin[2]])
+                        translate_success = r_t(strike_end_point[0],strike_end_point[1],strike_end_point[2])
+                    else:
+                        strike_start_point = numpy.array([home_position[0]-math.tan(theta)*(home_position[1]-ball_pos[1]), home_position[1], origin[2]])
+                        translate_success = r_t(strike_start_point[0],strike_start_point[1],strike_start_point[2])
+
+                        strike_end_point = numpy.array([ball_pos[0]+.02*math.sin(theta),ball_pos[1]-.02*math.cos(theta), origin[2]])
+                        translate_success = r_t(strike_end_point[0],strike_end_point[1],strike_end_point[2])
+
+                elif intersection3 == 0 and intersection4 == 0:
+                    # shoot down
+
+                    if arm == 'right':
+                        strike_start_point = numpy.array([home_position[0]+math.tan(theta)*(home_position[1]-ball_pos[1]), home_position[1], origin[2]])
+                        translate_success = r_t(strike_start_point[0],strike_start_point[1],strike_start_point[2])
+
+                        strike_end_point = numpy.array([ball_pos[0]-.02*math.sin(theta),ball_pos[1]+.02*math.cos(theta), origin[2]])
+                        translate_success = r_t(strike_end_point[0],strike_end_point[1],strike_end_point[2])
+                    else:
+                        strike_start_point = numpy.array([home_position[0]+math.tan(theta)*(home_position[1]-ball_pos[1]), home_position[1], origin[2]])
+                        translate_success = r_t(strike_start_point[0],strike_start_point[1],strike_start_point[2])
+
+                        strike_end_point = numpy.array([ball_pos[0]-.02*math.sin(theta),ball_pos[1]+.02*math.cos(theta), origin[2]])
+                        translate_success = r_t(strike_end_point[0],strike_end_point[1],strike_end_point[2])
+
+
+                else:
+                    # blast through the middle
+
+                    if arm == 'right':
+                        strike_end_point = numpy.array([ball_pos[0],ball_pos[1]-.02, origin[2]])
+                        translate_success = r_t(strike_end_point[0],strike_end_point[1],strike_end_point[2])
+                    else:
+                        strike_end_point = numpy.array([ball_pos[0],ball_pos[1]+.02, origin[2]])
+
+
+                # strike ball
+               
+                # move to home, set to defense
+                #home_success = go_home()
                 
 
-            elif intersection1 == 0 and intersection2 == 0:
-                # shoot up
-
-            elif intersection3 == 0 and intersection4 == 0:
-                # shoot down
-
-            else:
-                # blast through the middle
-
-
-
-
-            # strike ball
-            '''if arm == 'right':
-                print "striking ball"
-                strike_end_point = numpy.array([ball_pos[0],ball_pos[1]-.02, origin[2]])
-                translate_success = r_t(strike_end_point[0],strike_end_point[1],strike_end_point[2])
-            '''
-            # move to home, set to defense
-            #home_success = go_home()
-            
-
-            '''
-            target_point = numpy.array([field_width/2,0,0])
-            print "target_point"
-            print target_point
-            (theta,target_point) = get_bank(target_point)
-            print "new_target_point"
-            print target_point
-            print "theta"
-            print theta
-            rotate_success = r_r(theta)
-            '''
+                '''
+                target_point = numpy.array([field_width/2,0,0])
+                print "target_point"
+                print target_point
+                (theta,target_point) = get_bank(target_point)
+                print "new_target_point"
+                print target_point
+                print "theta"
+                print theta
+                rotate_success = r_r(theta)
+                '''
 
 
 
@@ -430,6 +498,7 @@ def initialize_field():
 
 def calibrate_home():
     global flag
+    global home_position
     flag = False
     r_h_cal = rospy.ServiceProxy('request_home_calibrate', home_calibrate)      # calibrates the home position at the start
 
@@ -438,14 +507,14 @@ def calibrate_home():
     while flag == False:
         x = 1
         #loop
-    h_cal_success = r_h_cal(True)
+    h_cal_success, home_position = r_h_cal(True)
     flag = False
     return h_cal_success
 
 def go_home():
     r_h = rospy.ServiceProxy('request_home', home)      # go to a "home" position, starting defensive position in front of goal
     home_success = r_h(True)
-    rospy.set_param('/mode','defense')
+    #rospy.set_param('/mode','defense')
 
     return home_success
 
