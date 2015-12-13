@@ -65,14 +65,14 @@ def move_to_point(initial_point,point):
     #print x_goal 
     at_goal = False
     #vel_mag = 0.02
-    mode = rospy.get_param('/mode')
+    mode = rospy.get_param('/mode_njllrd')
     if mode == 'sweep':
         vel_mag = 0.1
     else:
         if rospy.get_param("/striking") == "True":
             vel_mag = 1.5
         elif rospy.get_param("/striking") == "banked":
-            vel_mag = .3
+            vel_mag = 1
         else:
             vel_mag = .3
 

@@ -2,7 +2,7 @@
 
 <launch>
     
-    <param name="mode" value="field" />
+    <param name="mode_njllrd" value="field" />
     <param name="arm_njllrd" value="left" />
     <param name="path" value="$(find njllrd_proj3)/dog.jpg" />
     <param name="striking" value="False" />

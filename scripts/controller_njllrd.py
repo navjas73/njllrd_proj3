@@ -96,7 +96,7 @@ def controller_njllrd():
         #print rospy.get_param('/mode')
         #print rospy.get_param('/arm')
         #print "f"
-        if rospy.get_param('/mode') == "connect_points":
+        if rospy.get_param('/mode_njllrd') == "connect_points":
             point1, point2 = get_connect_points()
             
             points = waypoints()
@@ -122,14 +122,14 @@ def controller_njllrd():
             print points.points
             request = rospy.ServiceProxy('connect_waypoints', connect_waypoints)
             output = request(points)
-        elif rospy.get_param('/mode') == "sweep":
+        elif rospy.get_param('/mode_njllrd') == "sweep":
             r_t = rospy.ServiceProxy('request_translate', translate)
             current_pos = request_position(yes)
             translate_success = r_t(current_pos.x + .10,current_pos.y,current_pos.z)
             home_success = go_home()
             temp_block_positions = block_positions
             needs_sweep = True
-            while needs_sweep and rospy.get_param('/mode') == "sweep":
+            while needs_sweep and rospy.get_param('/mode_njllrd') == "sweep":
                 needs_sweep = False
                 for i in range(0,len(temp_block_positions),2):
                     print "i"
@@ -145,15 +145,15 @@ def controller_njllrd():
                             needs_sweep = True
                 if needs_sweep:
                     sweep(origin, temp_block_positions)
-            rospy.set_param('/mode','wait')
+            rospy.set_param('/mode_njllrd','wait')
 
                         
                        
         
-        elif rospy.get_param('/mode') == "wait":
+        elif rospy.get_param('/mode_njllrd') == "wait":
             a = True
             #print "waiting"
-        elif rospy.get_param('/mode') == "field":
+        elif rospy.get_param('/mode_njllrd') == "field":
             global field_length_pixels
             global field_width_pixels
             field_length_pixels = rospy.get_param('/image_width')
@@ -185,11 +185,11 @@ def controller_njllrd():
 
             
             home_success = go_home()        # move to home position and set the mode to defense
-            rospy.set_param('/mode','defense')
+            rospy.set_param('/mode_njllrd','defense')
             #rospy.set_param('/mode','wait')
             #rospy.set_param('/mode','wait')
             
-        elif rospy.get_param('/mode') == "defense":
+        elif rospy.get_param('/mode_njllrd') == "defense":
             global x_goal1
             global x_goal2
             global field_divisions
@@ -222,8 +222,8 @@ def controller_njllrd():
                         # switch to offense
                         #print "ball still"
                         rospy.sleep(1)
-                        rospy.set_param('/mode','offense')
-                        print rospy.get_param('/mode')
+                        rospy.set_param('/mode_njllrd','offense')
+                        print rospy.get_param('/mode_njllrd')
                         #elif (vx != 0) and (vy != 0): # ball is on our side still moving 
                     else:
                         #print "ball moving on our side"
@@ -257,7 +257,7 @@ def controller_njllrd():
                         translate_success = r_t(new_point[0], new_point[1], new_point[2])
                    
             
-        elif rospy.get_param('/mode') == 'offense':
+        elif rospy.get_param('/mode_njllrd') == 'offense':
             # get current ball pos
             # updated automatically in topic callback, stored as ball_pos [x,y,t]
             ball_placed = True
@@ -338,28 +338,40 @@ def controller_njllrd():
                     # shoot up
  
                     if arm == 'right':
-                        #strike_start_point = 
-                        print "strike_start_point"
-                        print strike_start_point
-                        print theta
-                        #translate_success = 
-
-                        rotate_success = r_r(theta)
-
-
-                        #strike_end_point = 
-                        print "strike_end_point"
-                        print strike_end_point
-                        #translate_success = 
-                    else:
                         rospy.set_param("/striking", "False")
-                        strike_start_point = numpy.array([temp_ball_pos[0]-.1*math.sin(theta), temp_ball_pos[1]-.1*math.cos(theta), 0])
+                        strike_start_point = numpy.array([temp_ball_pos[0]-.2*math.sin(theta), temp_ball_pos[1]+.2*math.cos(theta), 0])
                         print "strike_start_point"
                         print strike_start_point
                         print numpy.array([strike_start_point[0]+origin[0],origin[1]-strike_start_point[1], strike_start_point[2]+origin[2]])
                         print "origin"
                         print origin
-                        #translate_success = r_t(strike_start_point[0]+origin[0],origin[1]-strike_start_point[1], strike_start_point[2]+origin[2])
+                        translate_success = r_t(strike_start_point[0]+origin[0],origin[1]-strike_start_point[1], strike_start_point[2]+origin[2])
+
+
+                        rospy.sleep(2)
+
+                        rotate_success = r_r(theta)
+
+                        rospy.sleep(2)
+
+                        rospy.set_param("/striking", "banked")
+                        strike_end_point = numpy.array([temp_ball_pos[0]+.02*math.sin(theta), temp_ball_pos[1]-.02*math.cos(theta), 0])
+                        print "strike_end_point"
+                        print strike_end_point
+                        print numpy.array([strike_end_point[0]+origin[0],origin[1]-strike_end_point[1], strike_end_point[2]+origin[2]])
+                        translate_success = r_t(strike_end_point[0]+origin[0],-strike_end_point[1]+origin[1], strike_end_point[2]+origin[2])
+                        print "origin"
+                        print origin
+                        rospy.set_param("/striking", "False")
+                    else:
+                        rospy.set_param("/striking", "False")
+                        strike_start_point = numpy.array([temp_ball_pos[0]-.2*math.sin(theta), temp_ball_pos[1]-.2*math.cos(theta), 0])
+                        print "strike_start_point"
+                        print strike_start_point
+                        print numpy.array([strike_start_point[0]+origin[0],origin[1]-strike_start_point[1], strike_start_point[2]+origin[2]])
+                        print "origin"
+                        print origin
+                        translate_success = r_t(strike_start_point[0]+origin[0],origin[1]-strike_start_point[1], strike_start_point[2]+origin[2])
 
 
                         rospy.sleep(2)
@@ -373,7 +385,7 @@ def controller_njllrd():
                         print "strike_end_point"
                         print strike_end_point
                         print numpy.array([strike_end_point[0]+origin[0],origin[1]-strike_end_point[1], strike_end_point[2]+origin[2]])
-                        #translate_success = r_t(strike_end_point[0]+origin[0],-strike_end_point[1]+origin[1], strike_end_point[2]+origin[2])
+                        translate_success = r_t(strike_end_point[0]+origin[0],-strike_end_point[1]+origin[1], strike_end_point[2]+origin[2])
                         print "origin"
                         print origin
                         rospy.set_param("/striking", "False")
@@ -426,7 +438,7 @@ def controller_njllrd():
                 #move to home, set to defense
                 home_success = go_home()
                 print("HERE")
-                rospy.set_param('/mode', "defense")
+                rospy.set_param('/mode_njllrd', "defense")
 
                 '''
                 target_point = numpy.array([field_width/2,0,0])
@@ -441,7 +453,7 @@ def controller_njllrd():
                 '''
             else:
                 home_success = go_home()
-                rospy.set_param('/mode', "defense")
+                rospy.set_param('/mode_njllrd', "defense")
 
 
         # time.sleep(10)
@@ -834,13 +846,13 @@ def handle_game_state(data):
 
     if abs(mode-lastmode) > 0:
         if mode == 3:
-            rospy.set_param('/mode', "defense")
+            rospy.set_param('/mode_njllrd', "defense")
             lastmode = 3
         elif mode == 2:
-            rospy.set_param('/mode', "sweep")
+            rospy.set_param('/mode_njllrd', "sweep")
             lastmode = 2
         elif mode == 1:
-            rospy.set_param('/mode', "field")
+            rospy.set_param('/mode_njllrd', "field")
             lastmode = 1
 
 
