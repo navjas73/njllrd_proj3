@@ -30,7 +30,7 @@ joint_names = None
 tol         = None
 points = None
 tool_height = 0
-tool_length = .13
+tool_length = .20
 tool_width = 0.02
 joint_limits = None
 initial_orientation = None
@@ -65,7 +65,7 @@ def move_to_point(initial_point,point):
     #print x_goal 
     at_goal = False
     #vel_mag = 0.02
-    vel_mag = .5
+    vel_mag = .1
     kp = .3
     deltaT = 0
     x0last = x_init;
@@ -109,10 +109,10 @@ def move_to_point(initial_point,point):
         
         #dist = numpy.linalg.norm(numpy.subtract(x_goal,x0))
         dist = numpy.linalg.norm(x_goal-x0)
-        print "distTraveled"
+        '''print "distTraveled"
         print distTraveled
         print "distTraveledcheck"
-        print numpy.linalg.norm(x_goal-x_init)
+        print numpy.linalg.norm(x_goal-x_init)'''
 
         if distTraveled >= numpy.linalg.norm(x_goal - x_init):
             at_goal = True

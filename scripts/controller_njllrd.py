@@ -34,6 +34,8 @@ def controller_njllrd():
     global arm
 
     rospy.init_node('controller_njllrd')
+
+    '''
     rospy.wait_for_service('/game_server/Init')
     gamesvc = rospy.serviceProxy('/game_server/init', "game_server/Init")
     path = rospy.get_param("/path")
@@ -42,6 +44,7 @@ def controller_njllrd():
     receivedarm = gamesvc("baxterstreetboys", imagemsg)
 
     rospy.set_param("/arm", receivedarm)
+    '''
     rospy.wait_for_service('request_endpoint')
     rospy.wait_for_service('request_orientation')
     rospy.Subscriber('user_input', String, handle_user_input)
@@ -59,7 +62,7 @@ def controller_njllrd():
         arm = "right"
 
     print arm
-
+    home_time = rospy.time()
 
 
     ##### Testing loop for vision stuff #######
@@ -95,19 +98,20 @@ def controller_njllrd():
             output = request(points)
         elif rospy.get_param('/mode') == "sweeper":
             needs_sweep = True
-                while needs_sweep:
-                    needs_sweep = False
-                    for i in range(0,len(block_positions),2):
-                        x = block_positions[i]
-                        y = block_positions[i+1] 
-                        if arm = "right":
-                            if y > field_length - .30:
-                                needs_sweep = True
-                        else
-                            if y < .30:
-                                needs_sweep = True
-                    if needs_sweep:
-                        sweep()
+            while needs_sweep:
+                needs_sweep = False
+                for i in range(0,len(block_positions),2):
+                    x = block_positions[i]
+                    y = block_positions[i+1] 
+                    if arm == "right":
+                        if y > field_length - .30:
+                            needs_sweep = True
+                    else:
+                        if y < .30:
+                            needs_sweep = True
+                if needs_sweep:
+                    sweep(origin)
+            rospy.set_param('/mode','wait')
 
                         
                        
@@ -148,6 +152,12 @@ def controller_njllrd():
             global x_goal1
             global x_goal2
             global field_divisions
+            stall_time = rospy.time()-home_time
+            # EVERY SO OFTEN, GO HOME TO FIX ORIENTATION
+            if stall_time > 5:
+                home_success = go_home()
+                home_time = rospy.time()
+
             # try to find the ball
             # check ball side/position
             #print ball_pos
@@ -202,9 +212,7 @@ def controller_njllrd():
                         #print "moving to block ball"
                         translate_success = r_t(new_point[0], new_point[1], new_point[2])
                    
-            # EVERY SO OFTEN, GO HOME TO FIX ORIENTATION
-
-
+            
 
 
         elif rospy.get_param('/mode') == 'offense':
@@ -529,11 +537,18 @@ def calibrate_home():
     while flag == False:
         x = 1
         #loop
-    h_cal_success, home_position = r_h_cal(True)
+    # h_cal_success, home_position = r_h_cal(True)
+    data = r_h_cal(True)
+    h_cal_success = data.success
+    home_position = data.home_position
     flag = False
     return h_cal_success
 
 def go_home():
+    r_t = rospy.ServiceProxy('request_translate', translate)
+    translate_success = r_t(home_position[0],home_position[1],home_position[2])
+
+
     r_h = rospy.ServiceProxy('request_home', home)      # go to a "home" position, starting defensive position in front of goal
     home_success = r_h(True)
     #rospy.set_param('/mode','defense')
@@ -589,7 +604,7 @@ def get_ball_trajectory():
 def check_for_blocks(target_point,start_point):
     global block_positions
     intersection = 0
-    if block_positions != None:
+    if block_positions.any:
         point1 = [start_point[0], start_point[1]]
         point2 = [target_point[0],target_point[1]]
         line1 = [point1,point2]
@@ -621,15 +636,23 @@ def update_block_positions(data):
     global field_length_pixels
 
     block_positions = numpy.array(data.block)
+    if block_positions.any:
+        for i in range(0,len(block_positions),2):
 
-    for i in range(0,len(block_positions),2):
+            image_x = block_positions[i]
+            image_y = block_positions[i+1]
+            '''print "image block points"
+            print image_x
+            print image_y'''
 
-        image_x = block_positions[i]
-        image_y = block_positions[i+1]
-        x = (field_width_pixels - image_y)*field_width/field_width_pixels
-        y = image_x*field_length/field_length_pixels
-        block_positions[i] = x
-        block_positions[i+1] = y
+
+            x = (field_width_pixels - image_y)*field_width/field_width_pixels
+            y = image_x*field_length/field_length_pixels
+            block_positions[i] = x
+            block_positions[i+1] = y
+
+
+
 
 def line_intersection(line1, line2):
     m = (line1[1][0]-line1[0][0]) / (line1[1][1]-line1[0][1]) 
@@ -660,36 +683,43 @@ def line_intersection(line1, line2):
     
     return intersection
 
-def sweep():
+def sweep(origin):
     r_t = rospy.ServiceProxy('request_translate', translate)
-    for i in range(0,len(block_positions),2):
-        x = block_positions[i]
-        y = block_positions[i+1] 
-        if arm = "right":
-            if y > field_length - .30:
-                # move to y position of origin
-                sweep_start_point = numpy.array([origin[0], origin[1],origin[2]])
-                translate_success = r_t(sweep_start_point[0],sweep_start_point[1],sweep_start_point[2])
+    if block_positions.any:
+        for i in range(0,len(block_positions),2):
+            x = block_positions[i]
+            y = block_positions[i+1] 
+            print "origin_sweep"
+            print origin
+            if arm == "right":
+                if y > field_length - .30:
+                    # move to y position of origin
+                    #sweep_start_point = numpy.array([origin[0], origin[1],origin[2]])
+                    #translate_success = r_t(sweep_start_point[0],sweep_start_point[1],sweep_start_point[2])
 
-                sweep_start_point = numpy.array(x, origin[1] ,origin[2]])
-                translate_success = r_t(sweep_start_point[0],sweep_start_point[1],sweep_start_point[2])
-                
-                #sweep from right to left at x = x
-                sweep_end_point = numpy.array(x,field_length-.30, origin[2]])
-                translate_success = r_t(sweep_end_point[0],sweep_end_point[1],sweep_end_point[2])
+                    sweep_start_point = numpy.array([x+origin[0], origin[1]-0.02 ,origin[2]])
+                    translate_success = r_t(sweep_start_point[0],sweep_start_point[1],sweep_start_point[2])
+                    
+                    #sweep from right to left at x = x
+                    sweep_end_point = numpy.array([x+origin[0],origin[1]+field_length-.30, origin[2]])
+                    translate_success = r_t(sweep_end_point[0],sweep_end_point[1],sweep_end_point[2])
 
-        else
-            if y < .30:
-               # move to y position of origin
-                sweep_start_point = numpy.array([origin[0], origin[1],origin[2]])
-                translate_success = r_t(sweep_start_point[0],sweep_start_point[1],sweep_start_point[2])
+            else:
+                if y < .30:
+                    print "blockx"
+                    print x
+                    print "blocky"
+                    print y
+                   # move to y position of origin
+                    #sweep_start_point = numpy.array([origin[0], origin[1],origin[2]])
+                    #translate_success = r_t(sweep_start_point[0],sweep_start_point[1],sweep_start_point[2])
 
-                sweep_start_point = numpy.array(x, origin[1] ,origin[2]])
-                translate_success = r_t(sweep_start_point[0],sweep_start_point[1],sweep_start_point[2])
-                
-                #sweep from right to left at x = x
-                sweep_end_point = numpy.array(x,.30, origin[2]])
-                translate_success = r_t(sweep_end_point[0],sweep_end_point[1],sweep_end_point[2])
+                    sweep_start_point = numpy.array([x+origin[0], origin[1]-0.02,origin[2]])
+                    translate_success = r_t(sweep_start_point[0],sweep_start_point[1],sweep_start_point[2])
+                    
+                    #sweep from right to left at x = x
+                    sweep_end_point = numpy.array([x+origin[0],-.30+origin[1], origin[2]])
+                    translate_success = r_t(sweep_end_point[0],sweep_end_point[1],sweep_end_point[2])
 
 
 def get_bank(target_point):
