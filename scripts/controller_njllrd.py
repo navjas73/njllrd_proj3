@@ -52,7 +52,7 @@ def controller_njllrd():
  ############################################################UNCOMMENT#####################################################################   
     rospy.wait_for_service('/game_server/init')
     gamesvc = rospy.ServiceProxy('/game_server/init', Init)
-    path = rospy.get_param("/path")
+    path = rospy.get_param("/path_njllrd")
     image = cv2.imread(path)
     imagemsg = CvBridge().cv2_to_imgmsg(image, encoding="bgr8")
     receiveddata = gamesvc("baxstreetboys", imagemsg)
@@ -61,7 +61,7 @@ def controller_njllrd():
 ############################################################UNCOMMENT##################################################################################
 
 #################################################################DELETE THIS##############################################################################
-    rospy.set_param('/arm_njllrd', "right")
+    rospy.set_param('/arm_njllrd', "left")
 ###############################################################DELETE ABOVE LINE###########################################################################
 
 ##########################################################################UNCOMMENT##############################
@@ -95,7 +95,7 @@ def controller_njllrd():
 
 
     while True:
-        print rospy.get_param('mode_njllrd')
+        print rospy.get_param('/mode_njllrd')
         if rospy.get_param('/mode_njllrd') == "connect_points":
             point1, point2 = get_connect_points()
             
@@ -146,8 +146,6 @@ def controller_njllrd():
                 if needs_sweep:
                     sweep(origin, temp_block_positions)
                     home_success = go_home()
-            rospy.set_param('/mode_njllrd','wait')
-
                         
                        
         
@@ -865,8 +863,7 @@ def sweep(origin, temp_block_positions):
 def handle_game_state(data):
     global lastmode
     mode = data.current_phase
-    print "mode"
-    print mode
+    
 
     if abs(mode-lastmode) > 0:
         if mode == 3:
@@ -878,9 +875,6 @@ def handle_game_state(data):
         elif mode == 1:
             rospy.set_param('/mode_njllrd', "field")
             lastmode = 1
-    else:
-        rospy.set_param('/mode_njllrd', "wait")
-
 
 
 def get_bank(target_point):
