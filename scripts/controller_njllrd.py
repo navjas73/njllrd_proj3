@@ -61,7 +61,7 @@ def controller_njllrd():
 ############################################################UNCOMMENT##################################################################################
 
 #################################################################DELETE THIS##############################################################################
-    rospy.set_param('/arm_njllrd', "left")
+    #rospy.set_param('/arm_njllrd', "left")
 ###############################################################DELETE ABOVE LINE###########################################################################
 
 ##########################################################################UNCOMMENT##############################
@@ -95,7 +95,7 @@ def controller_njllrd():
 
 
     while True:
-        print rospy.get_param('/mode_njllrd')
+        #print rospy.get_param('/mode_njllrd')
         if rospy.get_param('/mode_njllrd') == "connect_points":
             point1, point2 = get_connect_points()
             
@@ -868,12 +868,15 @@ def handle_game_state(data):
     if abs(mode-lastmode) > 0:
         if mode == 3:
             rospy.set_param('/mode_njllrd', "defense")
+            print "defense"
             lastmode = 3
         elif mode == 2:
             rospy.set_param('/mode_njllrd', "sweep")
+            print "sweep"
             lastmode = 2
         elif mode == 1:
             rospy.set_param('/mode_njllrd', "field")
+            print "field"
             lastmode = 1
 
 
