@@ -30,7 +30,7 @@ joint_names = None
 tol         = None
 points = None
 tool_height = 0
-tool_length = .20
+tool_length = .22
 tool_width = 0.02
 joint_limits = None
 initial_orientation = None
@@ -38,6 +38,7 @@ plane_point_counter = 1
 arm = None   #left or right. determined by ros param
 home_position = None
 theta0 = None
+sweep_start = None
 
 def move_to_point(initial_point,point):
 # if q_next in reachable_workspace 
@@ -68,14 +69,14 @@ def move_to_point(initial_point,point):
     kp = 0.0
     mode = rospy.get_param('/mode_njllrd')
     if mode == 'sweep':
-        vel_mag = 0.1
+        vel_mag = 0.2
     else:
         if mode == 'defense':
             kp = 0.2
         if rospy.get_param("/striking") == "True":
             vel_mag = 1.5
         elif rospy.get_param("/striking") == "banked":
-            vel_mag = 1
+            vel_mag = 1.5
         else:
             vel_mag = .3
 
@@ -142,9 +143,9 @@ def move_to_point(initial_point,point):
         print "distTraveledcheck"
         print numpy.linalg.norm(x_goal-x_init)'''
 
-        if distTraveled >= numpy.linalg.norm(x_goal - x_init):
+        if distTraveled >= numpy.linalg.norm(x_goal - x_init)+.10 or dist < .02:
             at_goal = True
-            #print "within tolerance"
+            print "within tolerance"
             limb.exit_control_mode()
             break
         else:
@@ -304,6 +305,7 @@ def command_handler(data):
 
 def handle_request_endpoint(data):
     global plane_point_counter
+    global sweep_start
     endpoint = limb.endpoint_pose() # add in offset for tool later
     print "endpoint"
     print endpoint
@@ -319,21 +321,26 @@ def handle_request_endpoint(data):
     #print "our rotation"
     #our_rotation = quaternion_to_rotation(q[0],q[1],q[2],q[3])
     '''print our_rotation'''
+    '''
     if plane_point_counter == 1:
         # First plane point, corner
-        offset_vector = numpy.array([-tool_length/2,tool_width,-tool_height])
+        print "in here 1"
+        offset_vector = numpy.array([-tool_length/2,tool_width,0])
+        sweep_start = limb.joint_angles()
         plane_point_counter += 1
     elif plane_point_counter > 1:
         # For any other request of the endpoint. Should return the center of the tool
+        print "in here 2"
         offset_vector = numpy.array([0,0,-tool_height])
-
+        plane_point_counter += 1
+    '''
     #rotated_offset = numpy.dot(our_rotation,offset_vector)
     '''print "rotated offset"
     print rotated_offset'''
-    endpoint_position.x = endpoint_position.x + offset_vector[0]
+    #endpoint_position.x = endpoint_position.x + offset_vector[0]
     #print rotated_offset[0,0]
-    endpoint_position.y = endpoint_position.y + offset_vector[1]
-    endpoint_position.z = endpoint_position.z + offset_vector[2]
+    #endpoint_position.y = endpoint_position.y + offset_vector[1]
+    #endpoint_position.z = endpoint_position.z + offset_vector[2]
 
     print "endpoint position 2"
     print endpoint_position
@@ -515,6 +522,7 @@ def robot_interface_njllrd():
     rot = rospy.Service('request_rotate', rotate, handle_rotate)
     h = rospy.Service('request_home', home, handle_request_home)
     h_cal = rospy.Service('request_home_calibrate', home_calibrate, handle_request_home_calibrate)
+    sw = rospy.Service('request_sweep', sweep_service, handle_sweep_start)
 
     global joint_limits
     global limb 
@@ -546,6 +554,9 @@ def robot_interface_njllrd():
     points = waypoints()
     rospy.spin()
 
+def handle_sweep_start(data):
+    limb.move_to_joint_positions(sweep_start)
+    return True
 
 if __name__ == "__main__":
     robot_interface_njllrd()

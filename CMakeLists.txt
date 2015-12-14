@@ -63,6 +63,7 @@ add_service_files(
     rotate.srv
     home.srv
     home_calibrate.srv
+    sweep_service.srv
 )
 
 ## Generate actions in the 'action' folder
