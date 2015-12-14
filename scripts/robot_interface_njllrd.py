@@ -416,7 +416,7 @@ def handle_connect_configs(data):
         q = numpy.asarray(path[i].config)
         q_next = numpy.asarray(path[i+1].config)
         reached_point = reach_goal(q,q_next)
-        #joint_command = dict(zip(joint_names,q_dot))
+        #joint_command = dict(zip(jointhome. ready_names,q_dot))
         #print "joint_command"
         #print joint_command
         #limb.set_joint_velocities(joint_command)
@@ -497,7 +497,8 @@ def handle_request_home_calibrate(data):
     global theta0
     print rospy.get_param('/arm_njllrd')
     home_position = limb.joint_angles()
-    theta0 = limb.joint_angle(rospy.get_param('/arm_njllrd') + '_w2')
+    joint = rospy.get_param('/arm_njllrd') + '_w2'
+    theta0 = limb.joint_angle(joint)
     print "Home angles stored"
     print home_position
     pose = limb.endpoint_pose()['position']
@@ -506,7 +507,7 @@ def handle_request_home_calibrate(data):
 
 def robot_interface_njllrd():
     rospy.init_node('robot_interface_njllrd')
-    
+    rospy.sleep(5)
     # Subscribes to waypoints from controller, sent in a set 
     z = rospy.Service('connect_waypoints', connect_waypoints, command_handler)
 

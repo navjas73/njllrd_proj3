@@ -17,12 +17,14 @@ maxWidth_global = None
 maxHeight_global = None
 calibrated = 0
 block_array = None
-
+flag = False
 class image_blur:
 
   def __init__(self):
     # initialize a node called imaging
     rospy.init_node("vision_njllrd")
+    self.uinput = rospy.Subscriber('calibrate', String, self.handle_calibrate)
+    rospy.sleep(5)
 
     # Create publisher
     self.pub = rospy.Publisher('ball_position',ball, queue_size=10)
@@ -46,10 +48,11 @@ class image_blur:
 
     # we could do anything we want with the image here
     # for now, we'll blur using a median blur
-
-    #cv2.imshow("rgb", cv_image)
     if calibrated == 0:
         self.track_blocks(cv_image)
+    #cv2.imshow("rgb", cv_image)
+    if calibrated == 0 and flag == True:
+        
         if block_array is not None:
             self.calibrate_field(cv_image)
             warp = cv2.warpPerspective(cv_image, M_global, (maxWidth_global*2, maxHeight_global))
@@ -57,7 +60,7 @@ class image_blur:
 
             rospy.set_param('/image_height', height)
             rospy.set_param('/image_width', width)
-    else:
+    elif calibrated == 1:
         # Warp image
         warp = cv2.warpPerspective(cv_image, M_global, (maxWidth_global*2, maxHeight_global))
         #height, width, channels = warp.shape
@@ -68,6 +71,11 @@ class image_blur:
         cv2.waitKey(3)      
         self.track_ball(warp)
         self.track_blocks(warp)
+
+  def handle_calibrate(self,data):
+    global flag
+    flag = True
+    #print "got here"
 
   def calibrate_field(self,cv_image):
     global block_array
@@ -156,6 +164,7 @@ class image_blur:
             maxWidth_global = maxWidth
             maxHeight_global = maxHeight
             calibrated = 1
+            rospy.set_param('/calibrated_njllrd', "True")
             #print calibrated
 
     #cv2.imshow("warped",warp)
@@ -238,6 +247,7 @@ class image_blur:
     imgHSV = cv2.cvtColor(cv_image,cv2.COLOR_BGR2HSV)
 
     if calibrated == 0: # only look at half of the image
+        print rospy.get_param('/arm_njllrd')
         if rospy.get_param('/arm_njllrd') == 'left':
             imgHSV = imgHSV[0:-1,0:np.size(imgHSV,1)/2 + 50]
         else:

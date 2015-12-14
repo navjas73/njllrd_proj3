@@ -50,27 +50,30 @@ def controller_njllrd():
     rospy.init_node('controller_njllrd')
 
  ############################################################UNCOMMENT#####################################################################   
-    '''rospy.wait_for_service('/game_server/init')
+    rospy.wait_for_service('/game_server/init')
     gamesvc = rospy.ServiceProxy('/game_server/init', Init)
     path = rospy.get_param("/path")
     image = cv2.imread(path)
     imagemsg = CvBridge().cv2_to_imgmsg(image, encoding="bgr8")
     receiveddata = gamesvc("baxstreetboys", imagemsg)
     receivedarm = receiveddata.arm
-    rospy.set_param("/arm_njllrd", receivedarm)'''
-############################################################UNCOMMENT#######################################################################
-
+    rospy.set_param("/arm_njllrd", receivedarm)
+############################################################UNCOMMENT##################################################################################
 
 #################################################################DELETE THIS##############################################################################
-    rospy.set_param('/arm_njllrd', "left")
+    rospy.set_param('/arm_njllrd', "right")
 ###############################################################DELETE ABOVE LINE###########################################################################
 
+##########################################################################UNCOMMENT##############################
+    rospy.Subscriber('/game_server/game_state', GameState, handle_game_state)
+##################################################################################################################
 
+    while rospy.get_param('/calibrated_njllrd') == "False":
+        a = True
 
     rospy.wait_for_service('request_endpoint')
     rospy.wait_for_service('request_orientation')
 
-    #rospy.Subscriber('/game_server/game_state', GameState, handle_game_state)
     rospy.Subscriber('user_input', String, handle_user_input)
     # subscribe to ball position topic
     rospy.Subscriber("ball_position", ball, get_ball_velocity)
@@ -92,7 +95,7 @@ def controller_njllrd():
 
 
     while True:
-        
+        print rospy.get_param('mode_njllrd')
         if rospy.get_param('/mode_njllrd') == "connect_points":
             point1, point2 = get_connect_points()
             
@@ -152,45 +155,46 @@ def controller_njllrd():
             a = True
             #print "waiting"
         elif rospy.get_param('/mode_njllrd') == "field":
-            global field_length_pixels
-            global field_width_pixels
-            field_length_pixels = rospy.get_param('/image_width')
-            field_width_pixels = rospy.get_param('/image_height')
-            print "here"
-            print rospy.get_param("/image_height")
+            if rospy.get_param('/calibrated_njllrd') == "True":    
+                global field_length_pixels
+                global field_width_pixels
+                field_length_pixels = rospy.get_param('/image_width')
+                field_width_pixels = rospy.get_param('/image_height')
+                print "here"
+                print rospy.get_param("/image_height")
 
-            print rospy.get_param("/arm_njllrd")
-            # Calibrate the home position
-            home_cal_succ = calibrate_home()
+                print rospy.get_param("/arm_njllrd")
+                # Calibrate the home position
+                home_cal_succ = calibrate_home()
 
-            # initialize the field, create plane, rotations, etc.
-            origin = initialize_field()
-            origin[2] = home_position[2]
-            # get strike positions
-            #angles1 = get_angles()
-            #angles2 = get_angles()
+                # initialize the field, create plane, rotations, etc.
+                origin = initialize_field()
+                origin[2] = home_position[2]
+                # get strike positions
+                #angles1 = get_angles()
+                #angles2 = get_angles()
 
-            print "origin"
-            print origin
+                print "origin"
+                print origin
 
-            x = origin[0]
-            y = origin[1]
-            z = origin[2]
+                x = origin[0]
+                y = origin[1]
+                z = origin[2]
 
 
-            r_t = rospy.ServiceProxy('request_translate', translate)
-            r_r = rospy.ServiceProxy('request_rotate', rotate)
+                r_t = rospy.ServiceProxy('request_translate', translate)
+                r_r = rospy.ServiceProxy('request_rotate', rotate)
 
-            current_pos = request_position()
-            translate_success = r_t(home_position[0],home_position[1],current_pos.endpoint.z)
+                current_pos = request_position()
+                translate_success = r_t(home_position[0],home_position[1],current_pos.endpoint.z)
 
-            home_success = go_home()        # move to home position and set the mode to defense
+                home_success = go_home()        # move to home position and set the mode to defense
 
-            rospy.sleep(5) #COMMENT OUT ###############################################################################
-            #rospy.set_param('/mode_njllrd','sweep') #######################################################DELETE THIS
-            rospy.set_param('/mode_njllrd','defense') #######################################################DELETE THIS
-            #rospy.set_param('/mode','wait')            ####################################################UNCOMMENT THIS
-            #rospy.set_param('/mode','wait')
+                #rospy.sleep(5) #COMMENT OUT ###############################################################################
+                #rospy.set_param('/mode_njllrd','sweep') #######################################################DELETE THIS
+                #rospy.set_param('/mode_njllrd','defense') #######################################################DELETE THIS
+                rospy.set_param('/mode_njllrd','wait')            ####################################################UNCOMMENT THIS
+            
             
         elif rospy.get_param('/mode_njllrd') == "defense":
             global x_goal1
@@ -299,14 +303,14 @@ def controller_njllrd():
             # check whether ball is approximately within region of dot
             if arm == 'right':
                 # ball should be at x = .36, y = field_length-.22
-                if ball_pos[0] > .32 and ball_pos[0] < .40 and ball_pos[1] > field_length-.22-.04 and ball_pos[1] < field_length-.22+.04:
+                if ball_pos[0] > .30 and ball_pos[0] < .42 and ball_pos[1] > field_length-.22-.06 and ball_pos[1] < field_length-.22+.06:
                     ball_placed = True
                 else:
                     ball_placed = False
 
             else:
                 # ball should be at x = .36, y = .22
-                if ball_pos[0] > .32 and ball_pos[0] < .40 and ball_pos[1] > .18 and ball_pos[1] < .26:
+                if ball_pos[0] > .30 and ball_pos[0] < .42 and ball_pos[1] > .16 and ball_pos[1] < .28:
                     ball_placed = True
                 else:
                     ball_placed = False
@@ -827,7 +831,7 @@ def sweep(origin, temp_block_positions):
                     #sweep_start_point = numpy.array([origin[0], origin[1],origin[2]])
                     #translate_success = r_t(sweep_start_point[0],sweep_start_point[1],sweep_start_point[2])
 
-                    sweep_start_point = numpy.array([x+origin[0], origin[1]-field_length-0.06 ,origin[2]])
+                    sweep_start_point = numpy.array([x+origin[0], origin[1]-y-.06 ,origin[2]])
                     translate_success = r_t(sweep_start_point[0],sweep_start_point[1],sweep_start_point[2])
 
                
@@ -874,6 +878,8 @@ def handle_game_state(data):
         elif mode == 1:
             rospy.set_param('/mode_njllrd', "field")
             lastmode = 1
+    else:
+        rospy.set_param('/mode_njllrd', "wait")
 
 
 
