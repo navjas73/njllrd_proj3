@@ -3,7 +3,7 @@
 <launch>
     
     <param name="mode_njllrd" value="field" />
-    <param name="arm_njllrd" value="right" />
+    <param name="arm_njllrd" value="left" />
     <param name="path" value="$(find njllrd_proj3)/baxstreetboys.jpg" />
     <param name="striking" value="False" />
     <node name="robot_interface_njllrd" pkg="njllrd_proj3" type="robot_interface_njllrd.py"

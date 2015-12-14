@@ -61,7 +61,7 @@ def controller_njllrd():
 
 
 #################################################################DELETE THIS##############################################################################
-    rospy.set_param('/arm_njllrd', "right")
+    rospy.set_param('/arm_njllrd', "left")
 ###############################################################DELETE ABOVE LINE###########################################################################
 
 
@@ -120,8 +120,8 @@ def controller_njllrd():
             output = request(points)
         elif rospy.get_param('/mode_njllrd') == "sweep":
             r_t = rospy.ServiceProxy('request_translate', translate)
-            current_pos = request_position(yes)
-            translate_success = r_t(current_pos.x + .10,current_pos.y,current_pos.z)
+            current_pos = request_position()
+            translate_success = r_t(current_pos.endpoint.x + .10,current_pos.endpoint.y,current_pos.endpoint.z)
             home_success = go_home()
             temp_block_positions = block_positions
             needs_sweep = True
@@ -212,9 +212,7 @@ def controller_njllrd():
                 
                 if ball_side == 1:
                     # check velocity
-                    print "velocities"
-                    print vx
-                    print vy
+
                     if abs(vx) < 0.03  and abs(vy) < 0.03:
                         # ball is still on our side
                         # switch to offense
@@ -321,7 +319,7 @@ def controller_njllrd():
                     # shoot straight
                     if arm == 'right':
                         strike_end_point = numpy.array([origin[0]+ball_pos[0],origin[1]-(ball_pos[1]-.02), origin[2]])
-                        rotate_success = r_r(-math.pi/8)
+                        rotate_success = r_r(-math.pi/10)
                         translate_success = r_t(strike_end_point[0],strike_end_point[1],strike_end_point[2])
                         #limb.set_joint_position_speed(.2)
                         #limb.set_joint_positions(angles1)
@@ -353,7 +351,7 @@ def controller_njllrd():
 
                         rospy.sleep(2)
 
-                        rotate_success = r_r(theta)
+                        rotate_success = r_r(theta+math.pi/10)
 
                         rospy.sleep(2)
 
@@ -379,7 +377,7 @@ def controller_njllrd():
 
                         rospy.sleep(2)
 
-                        rotate_success = r_r(-theta)
+                        rotate_success = r_r(-theta-math.pi/10)
 
                         rospy.sleep(2)
 
@@ -671,7 +669,7 @@ def get_ball_trajectory():
                 m = vy/0.001
             else:
                 m = vy/vx
-            b = y-m*x
+            b = y-m*x 
             if m == 0:
                 x_impact = (y_offset - b)/0.001
             else:
@@ -679,7 +677,7 @@ def get_ball_trajectory():
         else:
             x_impact = None
     else:
-        y_offset = -field_length
+        y_offset = field_length
         if vy > 0:
             if vx == 0:
                 m = vy/0.001
@@ -794,7 +792,7 @@ def sweep(origin, temp_block_positions):
                     #sweep_start_point = numpy.array([origin[0], origin[1],origin[2]])
                     #translate_success = r_t(sweep_start_point[0],sweep_start_point[1],sweep_start_point[2])
 
-                    sweep_start_point = numpy.array([x+origin[0], origin[1]-0.02 ,origin[2]])
+                    sweep_start_point = numpy.array([x+origin[0], origin[1]+field_length-0.02 ,origin[2]])
                     translate_success = r_t(sweep_start_point[0],sweep_start_point[1],sweep_start_point[2])
                     
                     #sweep from right to left at x = x
