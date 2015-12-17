@@ -576,10 +576,10 @@ def get_ball_velocity(data):
         # transform position and scale from image to field
         ######## HERE IS THE ISSUE.. NEED TO TRANSFORM IMAGE TO FIELD!!!!!! ############
 
-        # x is measured from bottom of field, top of image. Also needs to be scaled.
+        # Calculates x position of ball in field coordinates
         x = (field_width_pixels - image_y)*field_width/field_width_pixels
 
-        # y needs to be scaled, and direction needs to be reversed
+        # Calculates y position of ball in field coordinates
         y = image_x*field_length/field_length_pixels
 
         #print "field x"
